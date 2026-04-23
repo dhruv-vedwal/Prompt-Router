@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM oven/bun:1.1 as build
+FROM oven/bun:latest as build
 WORKDIR /usr/src/app
 
 COPY . .

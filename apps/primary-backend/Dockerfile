@@ -1,5 +1,5 @@
-# Use Bun official image
-FROM oven/bun:1.1 as base
+# Use the latest Bun image for Prisma 6+ compatibility
+FROM oven/bun:latest as base
 WORKDIR /usr/src/app
 
 # Copy the entire monorepo to ensure shared packages are available
