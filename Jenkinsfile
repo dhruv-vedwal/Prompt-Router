@@ -10,7 +10,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 echo 'Installing dependencies with Bun...'
-                sh 'bun install'
+                bat 'bun install'
             }
         }
 
@@ -18,7 +18,7 @@ pipeline {
             steps {
                 echo 'Running Vitest in primary-backend...'
                 dir('apps/primary-backend') {
-                    sh 'bun run test'
+                    bat 'bun run test'
                 }
             }
         }
@@ -26,7 +26,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo 'Building Docker containers...'
-                sh 'docker-compose build'
+                bat 'docker-compose build'
             }
         }
 
@@ -34,7 +34,7 @@ pipeline {
             steps {
                 echo 'Deploying services...'
                 // In a local/demo environment, we just restart the containers
-                sh 'docker-compose up -d'
+                bat 'docker-compose up -d'
             }
         }
     }
