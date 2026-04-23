@@ -1,135 +1,62 @@
-# Turborepo starter
+# OpenRouter Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+A high-performance, modular AI Router built with **Bun**, **Turborepo**, and **ElysiaJS**.
 
-## Using this example
+## 🏗️ Architecture
 
-Run the following command:
+This project is structured as a monorepo containing three distinct applications and several shared packages:
 
-```sh
-npx create-turbo@latest
+- **`apps/api-backend`**: The "Router" engine. Proxies requests to LLM providers (OpenAI, Gemini, Anthropic) and manages credit deduction. Runs on port **4000**.
+- **`apps/primary-backend`**: Core business logic and management. Handles auth, JWT, and CRUD for API keys/user credits. Runs on port **3000**.
+- **`apps/dashboard-frontend`**: React 19 dashboard for users to manage their keys and track usage. Runs on port **3001**.
+- **`packages/db`**: Shared Prisma database layer used by both backends.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Installation
+Install all dependencies from the root directory:
+```bash
+bun install
 ```
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+### 2. Database Setup
+Configure your database URL in `packages/db/.env`, then:
+```bash
+cd packages/db
+bunx prisma generate
+bunx prisma db push
+cd ../..
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+### 3. Development
+Run all services simultaneously:
+```bash
+bun dev
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 🧐 Architectural Deep Dive
 
-```
-cd my-turborepo
+### → WHY was it written this way?
+1. **Vertical Separation of Concerns:** Most routers fail because their "Business Logic" (user management/payments) slows down their "Hot Path" (AI request proxying). By splitting `primary-backend` and `api-backend`, we ensure that dashboard traffic doesn't compete for resources with AI requests.
+2. **Independent Scalability:** In production, you might need 10 instances of the `api-backend` to handle traffic, but only 1 instance of the `dashboard-frontend`. This architecture allows that.
+3. **Type Safety Across the Stack:** Using a Monorepo with Bun/TypeScript ensures that a database schema change in `packages/db` is immediately reflected in all three applications.
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+### → WHEN should you use this pattern vs alternatives?
+- **Use this pattern when:** You are building a high-scale service meant to be used by both machines (via API) and humans (via Dashboard).
+- **Alternative (Monolith):** If you are building a simple app where the frontend and backend are tightly coupled and logic isn't split into distinct "Engine" and "Management" roles, a standard Next.js monolith may be simpler.
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+### → WHAT CS concepts does this connect to?
+- **Proxy Pattern:** The `api-backend` is a classic implementation of a Reverse Proxy, where a client sends a request to one endpoint, and the server decides which external service (OpenAI vs Gemini) to relay it to.
+- **Service-Oriented Architecture (SOA):** Breaking a system into smaller, self-contained functional units.
+- **Distributed Computing:** Managing multiple services that must communicate (Frontend ↔ Backend ↔ Database) in a synchronized manner.
+- **Eventual Consistency:** Deducting credits in the database as a side effect of a successful API call.
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### → WHERE can you go deeper?
+- **ElysiaJS Performance:** Read about how [ElysiaJS](https://elysiajs.com/) uses static code analysis to be one of the fastest Bun frameworks.
+- **System Design (API Gateways):** Research how companies like OpenRouter or Akamai design their routing layers.
+- **Turborepo Orchestration:** Check out the [Turborepo Docs](https://turbo.build/repo/docs) to understand how it handles caching and task execution.
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
