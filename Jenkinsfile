@@ -14,10 +14,28 @@ pipeline {
             }
         }
 
+        stage('Database Setup') {
+            steps {
+                echo 'Generating Prisma Client...'
+                dir('packages/db') {
+                    bat 'bunx prisma generate'
+                }
+            }
+        }
+
         stage('Backend Tests') {
             steps {
                 echo 'Running Vitest in primary-backend...'
                 dir('apps/primary-backend') {
+                    bat 'bun run test'
+                }
+            }
+        }
+
+        stage('Frontend Tests') {
+            steps {
+                echo 'Running Vitest in dashboard-frontend...'
+                dir('apps/dashboard-frontend') {
                     bat 'bun run test'
                 }
             }
