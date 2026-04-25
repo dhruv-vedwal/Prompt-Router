@@ -1,18 +1,21 @@
-import bearer from "@elysiajs/bearer";
 import { prisma } from "db";
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import { bearer } from '@elysiajs/bearer';
 import { Conversation } from "./types";
 import { Gemini } from "./llms/Gemini";
-import { OpenAi } from "./llms/Openai";
+import { OpenAi } from "./llms/OpenAi";
 import { Claude } from "./llms/Claude";
 import { LlmResponse } from "./llms/Base";
+import logger from "./lib/logger";
 
 const app = new Elysia()
 .use(bearer())
-.use(openapi());
 .post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {
   const model = body.model;
   const [_companyName, providerModelName] = model.split("/");
+  
+  logger.info(`Incoming request for model: ${model}`);
+
   const apiKeyDb = await prisma.apiKey.findFirst({
     where: {
       apiKey,
@@ -20,17 +23,20 @@ const app = new Elysia()
       deleted: false
     },
     select: {
-      user: true
+      user: true,
+      id: true
     }
   })
 
   if (!apiKeyDb) {
+    logger.warn(`Invalid API key attempt: ${apiKey}`);
     return status(403, {
       message: "Invalid api key"
     })
   }
 
   if (apiKeyDb?.user.credits <= 0) {
+    logger.warn(`User ${apiKeyDb.user.id} out of credits`);
     return status(403, {
       message: "You dont have enough credits in your db"
     })
@@ -57,6 +63,12 @@ const app = new Elysia()
     }
   })
 
+  if (providers.length === 0) {
+    return status(403, {
+      message: "No provider found for this model"
+    })
+  }
+
   const provider = providers[Math.floor(Math.random() * providers.length)];
 
   let response: LlmResponse | null = null
@@ -78,13 +90,15 @@ const app = new Elysia()
 
   if (!response) {
     return status(403, {
-      message: "No provider found for this model"
+      message: "Provider failed to respond"
     }) 
   }
 
   const creditsUsed = (response.inputTokensConsumed * provider.inputTokenCost + response.outputTokensConsumed * provider.outputTokenCost) / 10;
-  console.log(creditsUsed);
-  const res = await prisma.user.update({
+  
+  logger.info(`Request processed. Credits used: ${creditsUsed}`);
+
+  await prisma.user.update({
     where: {
       id: apiKeyDb.user.id
     },
@@ -94,10 +108,10 @@ const app = new Elysia()
       }
     }
   });
-  console.log(res)
-  const res2 = await prisma.apiKey.update({
+
+  await prisma.apiKey.update({
     where: {
-      apiKey: apiKey
+      id: apiKeyDb.id
     }, 
     data: {
       creditsConsumed: {
@@ -105,13 +119,12 @@ const app = new Elysia()
       }
     }
   })
-  console.log(res2)
 
   return response;
 }, {
   body: Conversation
-}).listen(4000);
+}).listen(4000, () => {
+  logger.info(`🚀 API Backend is running on http://localhost:4000`);
+});
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+export type App = typeof app;
