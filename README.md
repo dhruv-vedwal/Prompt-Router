@@ -38,6 +38,41 @@ bun dev
 
 ---
 
+## 🛠️ DevOps & Testing
+
+We have implemented a production-ready DevOps pipeline to ensure code quality and easy deployment.
+
+### 🧪 Automated Testing
+Run tests across the stack using **Vitest**:
+
+*   **Backend:** `cd apps/primary-backend && bun run test`
+*   **Frontend:** `cd apps/dashboard-frontend && bun run test`
+
+### 🐳 Docker Deployment
+The entire stack is containerized for consistent environments.
+```bash
+# Start Database, Backend, and Frontend (Nginx)
+docker-compose up --build
+```
+*   **Frontend:** `http://localhost` (Port 80)
+*   **Backend API:** `http://localhost:3000`
+*   **Postgres:** `localhost:5432`
+
+### 🤖 CI/CD Pipeline
+A `Jenkinsfile` is included in the root to automate the following on every push:
+1.  **Install:** `bun install`
+2.  **Database:** `bunx prisma generate`
+3.  **Test:** Runs Vitest for both Backend and Frontend.
+4.  **Build:** Builds Docker images for all services.
+5.  **Deploy:** Restarts services with the latest code.
+
+### 📝 Logging
+The backend uses **Winston** for structured logging.
+*   **Development:** Pretty, color-coded console output.
+*   **Production/Docker:** Structured JSON logs for easier monitoring.
+
+---
+
 ## 🧐 Architectural Deep Dive
 
 ### → WHY was it written this way?
