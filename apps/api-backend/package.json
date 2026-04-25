@@ -10,6 +10,7 @@
     "@anthropic-ai/sdk": "^0.74.0",
     "@elysiajs/bearer": "^1.4.3",
     "@google/genai": "^1.41.0",
+    "@elysiajs/cors": "^1.4.1",
     "elysia": "latest",
     "openai": "^6.22.0",
     "winston": "^3.13.0"

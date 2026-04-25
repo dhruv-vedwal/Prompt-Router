@@ -1,6 +1,7 @@
 import { prisma } from "db";
 import { Elysia } from "elysia";
 import { bearer } from '@elysiajs/bearer';
+import { cors } from '@elysiajs/cors';
 import { Conversation } from "./types";
 import { Gemini } from "./llms/Gemini";
 import { OpenAi } from "./llms/OpenAi";
@@ -9,6 +10,9 @@ import { LlmResponse } from "./llms/Base";
 import logger from "./lib/logger";
 
 const app = new Elysia()
+.use(cors({
+  origin: true // Allow all origins for the public API
+}))
 .use(bearer())
 .post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {
   const model = body.model;

@@ -4,7 +4,7 @@ import logger from "./lib/logger";
 
 
 app.use(cors({
-    origin: 'http://localhost:3001',
+    origin: true,
     credentials: true,
 })).listen(3000, () => {
     logger.info("🚀 Server is running on http://localhost:3000");
