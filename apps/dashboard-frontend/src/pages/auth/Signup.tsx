@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowRight, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Zap } from "lucide-react";
 
-export function Signin() {
+export function Signup() {
     const emailRef = useRef<HTMLInputElement>(null);
     const passwordRef = useRef<HTMLInputElement>(null);
     const elysiaClient = useElysiaClient();
@@ -29,18 +29,18 @@ export function Signin() {
             email: string;
             password: string;
         }) => {
-            const response = await elysiaClient.auth["sign-in"].post({
+            const response = await elysiaClient.auth["sign-up"].post({
                 email,
                 password,
             });
             if (response.error) {
                 const errValue = response.error.value as { message?: string } | undefined;
-                throw new Error(errValue?.message || "Invalid credentials");
+                throw new Error(errValue?.message || "Failed to create account");
             }
             return response.data;
         },
         onSuccess: () => {
-            setTimeout(() => navigate("/dashboard"), 1000);
+            setTimeout(() => navigate("/signin"), 1500);
         },
     });
 
@@ -51,9 +51,9 @@ export function Signin() {
                 className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[120px] animate-pulse"
                 style={{
                     background:
-                        "radial-gradient(circle, oklch(0.6 0.2 264) 0%, transparent 70%)",
+                        "radial-gradient(circle, oklch(0.7 0.15 55) 0%, transparent 70%)",
                     top: "-10%",
-                    left: "-5%",
+                    right: "-5%",
                     animationDuration: "8s",
                 }}
             />
@@ -61,9 +61,9 @@ export function Signin() {
                 className="absolute w-[500px] h-[500px] rounded-full opacity-[0.05] blur-[100px] animate-pulse"
                 style={{
                     background:
-                        "radial-gradient(circle, oklch(0.7 0.15 55) 0%, transparent 70%)",
+                        "radial-gradient(circle, oklch(0.6 0.2 264) 0%, transparent 70%)",
                     bottom: "-15%",
-                    right: "-10%",
+                    left: "-10%",
                     animationDuration: "12s",
                     animationDelay: "2s",
                 }}
@@ -87,17 +87,17 @@ export function Signin() {
                         <Zap className="size-4 text-primary" />
                     </div>
                     <span className="text-lg font-semibold tracking-tight text-foreground">
-                        OpenRouter
+                        PromptRouter
                     </span>
                 </div>
 
                 <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
                     <CardHeader className="text-center pb-2">
                         <CardTitle className="text-xl tracking-tight">
-                            Welcome back
+                            Create an account
                         </CardTitle>
                         <CardDescription className="text-muted-foreground/80">
-                            Sign in to your OpenRouter account
+                            Join PromptRouter and start building with AI
                         </CardDescription>
                     </CardHeader>
 
@@ -135,7 +135,7 @@ export function Signin() {
                                         id="password"
                                         ref={passwordRef}
                                         type="password"
-                                        placeholder="Enter your password"
+                                        placeholder="Min. 8 characters"
                                         className="pl-10 h-10"
                                         required
                                     />
@@ -155,7 +155,7 @@ export function Signin() {
                             {mutation.isSuccess && (
                                 <div className="flex items-start gap-2.5 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3.5 py-3">
                                     <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-                                    <span>Signed in! Redirecting to dashboard...</span>
+                                    <span>Account created! Redirecting to sign in...</span>
                                 </div>
                             )}
 
@@ -167,11 +167,11 @@ export function Signin() {
                                 {mutation.isPending ? (
                                     <>
                                         <Loader2 className="size-4 animate-spin" />
-                                        Signing in...
+                                        Creating account...
                                     </>
                                 ) : (
                                     <>
-                                        Sign in
+                                        Create account
                                         <ArrowRight className="size-4" />
                                     </>
                                 )}
@@ -181,16 +181,33 @@ export function Signin() {
 
                     <CardFooter className="justify-center">
                         <p className="text-sm text-muted-foreground">
-                            Don't have an account?{" "}
+                            Already have an account?{" "}
                             <Link
-                                to="/signup"
+                                to="/signin"
                                 className="text-foreground hover:underline underline-offset-4 font-medium transition-colors"
                             >
-                                Sign up
+                                Sign in
                             </Link>
                         </p>
                     </CardFooter>
                 </Card>
+
+                <p className="text-center text-xs text-muted-foreground/60 mt-8 leading-relaxed">
+                    By creating an account, you agree to our{" "}
+                    <a
+                        href="#"
+                        className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+                    >
+                        Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a
+                        href="#"
+                        className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+                    >
+                        Privacy Policy
+                    </a>
+                </p>
             </div>
         </div>
     );

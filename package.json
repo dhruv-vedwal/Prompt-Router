@@ -1,5 +1,5 @@
 {
-  "name": "openrouter",
+  "name": "promptrouter",
   "private": true,
   "scripts": {
     "build": "turbo run build",

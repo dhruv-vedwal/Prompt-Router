@@ -13,6 +13,7 @@ export type Messages = typeof Messages.static;
 
 export const Conversation = t.Object({
     model: t.String(),
-    messages: Messages
+    messages: Messages,
+    sessionId: t.Optional(t.String())
 })
 

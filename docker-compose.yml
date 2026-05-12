@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: openrouter
+      POSTGRES_DB: promptrouter
     ports:
       - "5432:5432"
     healthcheck:
@@ -20,7 +20,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/openrouter
+      - DATABASE_URL=postgresql://postgres:password@db:5432/promptrouter
       - JWT_SECRET=test_secret_change_me
     depends_on:
       db:

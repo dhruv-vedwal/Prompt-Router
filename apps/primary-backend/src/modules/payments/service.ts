@@ -11,9 +11,17 @@ export abstract class PaymentsService {
                     id: userId
                 },
                 data: {
-                    credits: {
+                    balance: {
                         increment: ONRAMP_AMOUNT
                     }
+                }
+            }),
+            prisma.transaction.create({
+                data: {
+                    userId,
+                    type: "ONRAMP",
+                    amount: ONRAMP_AMOUNT,
+                    metadata: { source: "test_gateway" }
                 }
             }),
             prisma.onrampTransaction.create({
@@ -25,6 +33,6 @@ export abstract class PaymentsService {
             })
         ])
 
-        return user.credits;
+        return user.balance.toString();
     }
 }

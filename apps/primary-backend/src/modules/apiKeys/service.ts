@@ -45,7 +45,7 @@ export abstract class ApiKeyService {
             id: apiKey.id.toString(),
             apiKey: apiKey.apiKey,
             name: apiKey.name,
-            credisConsumed: apiKey.creditsConsumed,
+            creditsConsumed: apiKey.creditsConsumed.toString(),
             lastUsed: apiKey.lastUsed,
             disabled: apiKey.disabled
         }))

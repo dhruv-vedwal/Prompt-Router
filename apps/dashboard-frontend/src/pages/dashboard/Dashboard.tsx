@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
-import { DashboardLayout } from "@/components/DashboardLayout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";

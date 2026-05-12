@@ -69,7 +69,7 @@ export function Landing() {
                             <Zap className="size-3.5 text-primary" />
                         </div>
                         <span className="text-sm font-semibold tracking-tight">
-                            OpenRouter
+                            PromptRouter
                         </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -159,7 +159,7 @@ export function Landing() {
                                     <span className="text-blue-400">{"await "}</span>
                                     <span className="text-yellow-300">{"fetch"}</span>
                                     <span className="text-foreground">{"(\n"}</span>
-                                    <span className="text-emerald-400">{'  "https://openrouter.ai/api/v1/chat"'}</span>
+                                    <span className="text-emerald-400">{'  "https://promptrouter.dev/api/v1/chat"'}</span>
                                     <span className="text-foreground">{",\n  { "}</span>
                                     <span className="text-foreground">{"method: "}</span>
                                     <span className="text-emerald-400">{'"POST"'}</span>
@@ -267,10 +267,10 @@ export function Landing() {
                 <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Zap className="size-3.5 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">OpenRouter</span>
+                        <span className="text-xs text-muted-foreground">PromptRouter</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        &copy; 2026 OpenRouter. All rights reserved.
+                        &copy; 2026 PromptRouter. All rights reserved.
                     </p>
                 </div>
             </footer>

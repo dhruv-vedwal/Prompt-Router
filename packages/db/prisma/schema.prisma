@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
@@ -11,23 +11,27 @@ model User {
   id                 Int                 @id @default(autoincrement())
   email              String              @unique
   password           String
-  credits            Int                 @default(1000)
+  balance            Decimal             @default(1000)
+  reservedCredits    Decimal             @default(0)
+  role               String              @default("USER") // USER, ADMIN
   apiKeys            ApiKey[]
-  onrampTransactions OnrampTransaction[]
+  transactions       Transaction[]
   conversations      Conversation[]
+  onrampTransactions OnrampTransaction[]
+  chatSessions       ChatSession[]
 }
 
 model ApiKey {
-  id            Int            @id @default(autoincrement())
-  userId        Int
-  name          String
-  apiKey        String         @unique
-  disabled      Boolean        @default(false)
-  deleted       Boolean        @default(false)
-  lastUsed      DateTime?
-  creditsConsumed  Int        @default(0)
-  user          User           @relation(fields: [userId], references: [id])
-  conversations Conversation[]
+  id              Int            @id @default(autoincrement())
+  userId          Int
+  name            String
+  apiKey          String         @unique
+  disabled        Boolean        @default(false)
+  deleted         Boolean        @default(false)
+  lastUsed        DateTime?
+  creditsConsumed Decimal        @default(0)
+  user            User           @relation(fields: [userId], references: [id])
+  conversations   Conversation[]
 }
 
 model Company {
@@ -40,10 +44,12 @@ model Company {
 model Model {
   id                    Int                    @id @default(autoincrement())
   name                  String
-  slug                  String
+  slug                  String                 @unique
   companyId             Int
   company               Company                @relation(fields: [companyId], references: [id])
   modelProviderMappings ModelProviderMapping[]
+
+  @@index([slug])
 }
 
 model Provider {
@@ -54,14 +60,17 @@ model Provider {
 }
 
 model ModelProviderMapping {
-  id              Int            @id @default(autoincrement())
-  modelId         Int
-  providerId      Int
-  inputTokenCost  Int
-  outputTokenCost Int
-  model           Model          @relation(fields: [modelId], references: [id])
-  provider        Provider       @relation(fields: [providerId], references: [id])
-  conversations   Conversation[]
+  id               Int            @id @default(autoincrement())
+  modelId          Int
+  providerId       Int
+  inputPricePer1k  Decimal
+  outputPricePer1k Decimal
+  markupMultiplier Decimal        @default(1.2)
+  model            Model          @relation(fields: [modelId], references: [id])
+  provider         Provider       @relation(fields: [providerId], references: [id])
+  conversations    Conversation[]
+
+  @@index([modelId])
 }
 
 model OnrampTransaction {
@@ -70,6 +79,29 @@ model OnrampTransaction {
   amount Int
   status String
   user   User   @relation(fields: [userId], references: [id])
+}
+
+model ChatSession {
+  id        String        @id @default(uuid())
+  userId    Int
+  title     String        @default("New Chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id])
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id        String      @id @default(uuid())
+  sessionId String
+  role      String      // user, assistant
+  content   String
+  createdAt DateTime    @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }
 
 model Conversation {
@@ -81,7 +113,31 @@ model Conversation {
   output                 String
   inputTokenCount        Int
   outputTokenCount       Int
+  durationMs             Int?
+  rawCost                Decimal?
+  chargedCost            Decimal?
+  margin                 Decimal?
+  status                 String?
+  sessionId              String?
+  createdAt              DateTime             @default(now())
   user                   User                 @relation(fields: [userId], references: [id])
   apiKey                 ApiKey               @relation(fields: [apiKeyId], references: [id])
   modelProviderMapping   ModelProviderMapping @relation(fields: [modelProviderMappingId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([apiKeyId])
+  @@index([sessionId])
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // RESERVE, SETTLE, REFUND, ONRAMP
+  amount    Decimal
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
 }

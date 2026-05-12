@@ -1,4 +1,4 @@
-# OpenRouter Monorepo
+# PromptRouter Monorepo
 
 A high-performance, modular AI Router built with **Bun**, **Turborepo**, and **ElysiaJS**.
 
@@ -92,6 +92,6 @@ The backend uses **Winston** for structured logging.
 
 ### → WHERE can you go deeper?
 - **ElysiaJS Performance:** Read about how [ElysiaJS](https://elysiajs.com/) uses static code analysis to be one of the fastest Bun frameworks.
-- **System Design (API Gateways):** Research how companies like OpenRouter or Akamai design their routing layers.
+- **System Design (API Gateways):** Research how companies like PromptRouter or Akamai design their routing layers.
 - **Turborepo Orchestration:** Check out the [Turborepo Docs](https://turbo.build/repo/docs) to understand how it handles caching and task execution.
 

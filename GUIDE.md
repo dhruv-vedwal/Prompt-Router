@@ -1,6 +1,6 @@
-# 📖 OpenRouter: The Complete Architectural & Technical Manual
+# 📖 PromptRouter: The Complete Architectural & Technical Manual
 
-This is the definitive guide to the OpenRouter monorepo. It explains not just **what** the code does, but the **engineering philosophy** behind why it was built this way.
+This is the definitive guide to the PromptRouter monorepo. It explains not just **what** the code does, but the **engineering philosophy** behind why it was built this way.
 
 ---
 

@@ -40,7 +40,8 @@ export namespace AuthModel {
 
 
     export const profileResponseSchema = t.Object({
-        credits: t.Number()
+        balance: t.String(),
+        role: t.String()
     })
 
     export const profileResponseErrorSchema = t.Object({

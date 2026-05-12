@@ -38,4 +38,24 @@ export namespace ModelsModel {
     })
 
     export type getModelProvidersResponseSchema = typeof getModelProvidersResponseSchema.static;
+
+    export const createModelSchema = t.Object({
+        name: t.String(),
+        slug: t.String(),
+        companyId: t.String()
+    })
+
+    export const updateModelSchema = t.Partial(createModelSchema);
+
+    export const createProviderSchema = t.Object({
+        name: t.String(),
+        website: t.String()
+    })
+
+    export const createModelProviderSchema = t.Object({
+        modelId: t.String(),
+        providerId: t.String(),
+        inputTokenCost: t.Number(),
+        outputTokenCost: t.Number()
+    })
 }

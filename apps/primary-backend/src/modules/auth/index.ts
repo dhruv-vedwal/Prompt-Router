@@ -2,6 +2,7 @@ import { Cookie, Elysia } from "elysia";
 import { AuthModel } from "./models";
 import { AuthService } from "./service";
 import jwt from "@elysiajs/jwt";
+import { password } from "bun";
 
 export const app = new Elysia({ prefix: "auth" })
     .use(
@@ -17,7 +18,7 @@ export const app = new Elysia({ prefix: "auth" })
                 id: userId
             }
         } catch(e) {
-            console.log(e)
+            console.error("Signup Error:", e);
             return status(400, {
                 message: "Error while signing up"
             })
@@ -30,9 +31,9 @@ export const app = new Elysia({ prefix: "auth" })
         }
     })
     .post("/sign-in", async ({ jwt, body, status, cookie: { auth } }) => {
-        const { correctCredentials, userId } = await AuthService.signin(body.email, body.password)
+        const { correctCredentials, userId, role } = await AuthService.signin(body.email, body.password)
         if (correctCredentials && userId) {
-            const token = await jwt.sign({ userId })
+            const token = await jwt.sign({ userId, role })
             if (!auth) {
                 auth = new Cookie("auth", {});
             }
@@ -70,7 +71,8 @@ export const app = new Elysia({ prefix: "auth" })
         }
 
         return {
-            userId: decoded.userId as string
+            userId: decoded.userId as string,
+            role: decoded.role as string
         }
     })
     .get("/profile", async({ userId, status }) => {

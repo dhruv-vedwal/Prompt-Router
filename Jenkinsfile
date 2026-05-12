@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_REGISTRY = "my-docker-registry" // Placeholder
-        APP_NAME = "openrouter"
+        APP_NAME = "promptrouter"
     }
 
     stages {

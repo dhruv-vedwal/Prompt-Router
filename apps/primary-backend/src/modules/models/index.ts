@@ -1,8 +1,15 @@
-import Elysia from "elysia";
+import Elysia, { t } from "elysia";
+import jwt from "@elysiajs/jwt";
 import { ModelsModel } from "./models";
 import { ModelsService } from "./service";
 
 export const app = new Elysia({ prefix: "models" })
+    .use(
+        jwt({
+            name: 'jwt',
+            secret: process.env.JWT_SECRET!
+        })
+    )
     .get("/", async () => {
         const models = await ModelsService.getModels();
         return {
@@ -23,6 +30,30 @@ export const app = new Elysia({ prefix: "models" })
             200: ModelsModel.getProvidersResponseSchema
         }
     })
+    .get("/companies", async () => {
+        const companies = await ModelsService.getCompanies();
+        return {
+            companies
+        }
+    })
+    .resolve(async ({ cookie: { auth }, status, jwt}) => {
+        if (!auth) return status(401)
+        const decoded = await jwt.verify(auth.value as string);
+        if (!decoded || !decoded.userId) return status(401)
+        return {
+            userId: decoded.userId as string,
+            role: decoded.role as string
+        }
+    })
+    .post("/companies", async ({ body, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.createCompany(body);
+    }, {
+        body: t.Object({
+            name: t.String(),
+            website: t.String()
+        })
+    })
     .get("/:id/providers", async ({ params: { id } }) => {
         const providers = await ModelsService.getModelProviders(Number(id));
         return {
@@ -32,4 +63,30 @@ export const app = new Elysia({ prefix: "models" })
         response: {
             200: ModelsModel.getModelProvidersResponseSchema
         }
+    })
+    .post("/", async ({ body, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.createModel(body);
+    }, {
+        body: ModelsModel.createModelSchema
+    })
+    .delete("/:id", async ({ params: { id }, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.deleteModel(Number(id));
+    })
+    .post("/providers", async ({ body, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.createProvider(body);
+    }, {
+        body: ModelsModel.createProviderSchema
+    })
+    .delete("/providers/:id", async ({ params: { id }, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.deleteProvider(Number(id));
+    })
+    .post("/mapping", async ({ body, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        return await ModelsService.createModelProviderMapping(body);
+    }, {
+        body: ModelsModel.createModelProviderSchema
     })
