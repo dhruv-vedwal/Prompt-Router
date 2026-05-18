@@ -18,6 +18,7 @@ import { ManageModels } from "./pages/admin/Models";
 import { ManageProviders } from "./pages/admin/Providers";
 import { ManageCompanies } from "./pages/admin/Companies";
 import { PlatformStats } from "./pages/admin/Stats";
+import { AdminUsers } from "./pages/admin/Users";
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 
@@ -53,6 +54,7 @@ export function App() {
                 <Route path={"/admin/providers"} element={<ManageProviders />} /> 
                 <Route path={"/admin/stats"} element={<PlatformStats />} /> 
                 <Route path={"/admin/companies"} element={<ManageCompanies />} />
+                <Route path={"/admin/users"} element={<AdminUsers />} />
               </Routes>
             </BrowserRouter>
         </ElysiaClientContextProvider>

@@ -28,6 +28,10 @@ model ApiKey {
   apiKey          String         @unique
   disabled        Boolean        @default(false)
   deleted         Boolean        @default(false)
+  rpmLimit        Int            @default(60)
+  tpmLimit        Int            @default(40000)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   lastUsed        DateTime?
   creditsConsumed Decimal        @default(0)
   user            User           @relation(fields: [userId], references: [id])

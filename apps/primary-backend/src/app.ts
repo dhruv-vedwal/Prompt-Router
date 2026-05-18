@@ -6,6 +6,7 @@ import { app as paymentsApp } from "./modules/payments";
 import { app as statsApp } from "./modules/stats";
 import { app as usageApp } from "./modules/usage";
 import { app as playgroundApp } from "./modules/playground";
+import { app as adminApp } from "./modules/admin";
 
 export const app = new Elysia()
   .use(authApp)
@@ -15,5 +16,6 @@ export const app = new Elysia()
   .use(statsApp)
   .use(usageApp)
   .use(playgroundApp)
+  .use(adminApp)
   
 export type App = typeof app

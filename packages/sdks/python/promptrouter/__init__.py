@@ -1,3 +1,3 @@
-from .client import PromptRouter
+from .client import PromptRouter, AsyncPromptRouter
 
-__all__ = ["PromptRouter"]
+__all__ = ["PromptRouter", "AsyncPromptRouter"]

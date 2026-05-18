@@ -145,7 +145,7 @@ export function Analytics() {
                                         axisLine={false}
                                         tickLine={false}
                                         tick={{fill: 'rgba(255,255,255,0.2)', fontSize: 9, fontWeight: 600}}
-                                        tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                                        tickFormatter={(val) => typeof val === 'string' && val.includes('-') ? val.split('-').slice(1).join('/') : val}
                                     />
                                     <YAxis 
                                         axisLine={false}

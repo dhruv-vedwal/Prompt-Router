@@ -3,14 +3,26 @@ import { t } from "elysia";
 export namespace ModelsModel {
     export const getModelsResponseSchema = t.Object({
         models: t.Array(t.Object({
-            id: t.String(),
+            id: t.Number(),
             name: t.String(),
             slug: t.String(),
             company: t.Object({
-                id: t.String(),
+                id: t.Number(),
                 name: t.String(),
                 website: t.String()
-            })
+            }),
+            modelProviderMappings: t.Array(t.Object({
+                id: t.Number(),
+                enabled: t.Boolean(),
+                inputPricePer1k: t.Number(),
+                outputPricePer1k: t.Number(),
+                markupMultiplier: t.Number(),
+                provider: t.Object({
+                    id: t.Number(),
+                    name: t.String(),
+                    website: t.String()
+                })
+            }))
         }))
     })
 
@@ -18,7 +30,7 @@ export namespace ModelsModel {
 
     export const getProvidersResponseSchema = t.Object({
         providers: t.Array(t.Object({
-            id: t.String(),
+            id: t.Number(),
             name: t.String(),
             website: t.String()
         }))
@@ -28,8 +40,8 @@ export namespace ModelsModel {
 
     export const getModelProvidersResponseSchema = t.Object({
         providers: t.Array(t.Object({
-            id: t.String(),
-            providerId: t.String(),
+            id: t.Number(),
+            providerId: t.Number(),
             providerName: t.String(),
             providerWebsite: t.String(),
             inputTokenCost: t.Number(),

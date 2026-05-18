@@ -34,15 +34,25 @@ import {
     Building2,
     Tag,
     Trash2,
+    Zap,
+    Settings2,
+    Check,
+    X,
+    Coins,
+    BarChart3,
+    Activity,
+    Power
 } from "lucide-react";
 import { useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
 
 export function ManageModels() {
     const elysiaClient = useElysiaClient();
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingMapping, setEditingMapping] = useState<any>(null);
 
     // Form State
     const [newModel, setNewModel] = useState({
@@ -82,8 +92,20 @@ export function ManageModels() {
         },
     });
 
+    const updateMappingMutation = useMutation({
+        mutationFn: async ({ id, data }: { id: string, data: any }) => {
+            const response = await elysiaClient.admin.mappings({ id }).put(data);
+            if (response.error) throw new Error("Failed to update mapping");
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin-models"] });
+            setEditingMapping(null);
+        }
+    });
+
     const deleteMutation = useMutation({
-        mutationFn: async (id: string) => {
+        mutationFn: async (id: number) => {
             const response = await elysiaClient.models({ id }).delete();
             if (response.error) throw new Error("Failed to delete model");
             return response.data;
@@ -102,158 +124,278 @@ export function ManageModels() {
 
     return (
         <DashboardLayout>
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="space-y-10 animate-in fade-in duration-700">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-amber-500">
-                            <Box className="size-4" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Console Admin</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-primary">
+                            <Box className="size-5" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Network Control Center</span>
                         </div>
-                        <h1 className="text-3xl font-black tracking-tight text-foreground">Manage Models</h1>
-                        <p className="text-muted-foreground/70 text-sm">Register and configure LLM slugs for the global directory.</p>
+                        <h1 className="text-4xl font-black tracking-tighter text-foreground">Manage Models</h1>
+                        <p className="text-muted-foreground text-sm max-w-md font-medium leading-relaxed">
+                            Configure model routing, manage pricing structures, and monitor provider operational status across the network.
+                        </p>
                     </div>
 
-                    <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="bg-amber-500 hover:bg-amber-600 text-black font-bold gap-2 rounded-xl shadow-lg shadow-amber-500/20">
-                                <Plus className="size-4" />
-                                Register Model
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px] bg-card border-border shadow-2xl">
-                            <DialogHeader>
-                                <DialogTitle className="text-2xl font-black">Register New Model</DialogTitle>
-                                <DialogDescription>
-                                    Add a new LLM to the platform catalog. This slug will be used for API routing.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-6 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="e.g. GPT-4o"
-                                        value={newModel.name}
-                                        onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
-                                        className="h-12 rounded-xl border-border bg-background focus-visible:ring-amber-500/20 focus-visible:border-amber-500"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="slug" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Route Slug</Label>
-                                    <Input
-                                        id="slug"
-                                        placeholder="e.g. openai/gpt-4o"
-                                        value={newModel.slug}
-                                        onChange={(e) => setNewModel(prev => ({ ...prev, slug: e.target.value }))}
-                                        className="h-12 rounded-xl border-border bg-background font-mono text-sm focus-visible:ring-amber-500/20 focus-visible:border-amber-500"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="company" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Parent Company</Label>
-                                    <Select 
-                                        value={newModel.companyId} 
-                                        onValueChange={(val) => setNewModel(prev => ({ ...prev, companyId: val }))}
-                                    >
-                                        <SelectTrigger className="h-12 rounded-xl border-border bg-background focus:ring-amber-500/20">
-                                            <SelectValue placeholder="Select provider company..." />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-card border-border">
-                                            {companiesQuery.data?.companies.map((c: any) => (
-                                                <SelectItem key={c.id} value={c.id} className="focus:bg-amber-500/10 focus:text-amber-500">
-                                                    {c.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button
-                                    disabled={createMutation.isPending || !newModel.name || !newModel.slug || !newModel.companyId}
-                                    onClick={() => createMutation.mutate(newModel)}
-                                    className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest rounded-xl"
-                                >
-                                    {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Deploy to Catalog"}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-
-                {/* Search & Stats */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <Card className="lg:col-span-3 bg-card/40 border-border/50 backdrop-blur-sm relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/50" />
-                        <CardContent className="p-4 flex items-center gap-4">
-                            <Search className="size-5 text-muted-foreground/50 ml-2" />
+                    <div className="flex items-center gap-3">
+                        <div className="relative group bg-card/50 backdrop-blur-xl border border-border/50 p-2 rounded-2xl">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
                             <Input 
-                                placeholder="Search by name or slug..." 
+                                placeholder="Filter directory..." 
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="border-none bg-transparent focus-visible:ring-0 text-lg placeholder:text-muted-foreground/30 font-medium"
+                                className="pl-11 w-64 bg-background/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl h-11"
                             />
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-amber-500/5 border-amber-500/20 flex flex-col justify-center p-6 rounded-3xl">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-500/60">Total Catalog</span>
-                        <p className="text-4xl font-black text-foreground mt-1 tabular-nums">{models.length}</p>
-                    </Card>
+                        </div>
+                        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                                    <Plus className="size-4" />
+                                    Register LLM
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px] bg-card/90 backdrop-blur-2xl border-border/50 shadow-2xl">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-black tracking-tight">Register New Model</DialogTitle>
+                                    <DialogDescription className="text-sm font-medium">Add a new LLM to the global routing catalog.</DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="grid gap-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</Label>
+                                        <Input
+                                            placeholder="e.g. GPT-4o"
+                                            value={newModel.name}
+                                            onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
+                                            className="h-12 rounded-xl bg-background/50 border-border/50"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Route Slug</Label>
+                                        <Input
+                                            placeholder="e.g. openai/gpt-4o"
+                                            value={newModel.slug}
+                                            onChange={(e) => setNewModel(prev => ({ ...prev, slug: e.target.value }))}
+                                            className="h-12 rounded-xl bg-background/50 border-border/50 font-mono text-sm"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Provider Company</Label>
+                                        <Select 
+                                            value={newModel.companyId} 
+                                            onValueChange={(val) => setNewModel(prev => ({ ...prev, companyId: val }))}
+                                        >
+                                            <SelectTrigger className="h-12 rounded-xl bg-background/50 border-border/50">
+                                                <SelectValue placeholder="Select parent company..." />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-card/90 backdrop-blur-xl border-border/50">
+                                                {companiesQuery.data?.companies.map((c: any) => (
+                                                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button
+                                        disabled={createMutation.isPending || !newModel.name || !newModel.slug || !newModel.companyId}
+                                        onClick={() => createMutation.mutate(newModel)}
+                                        className="w-full h-12 font-black uppercase tracking-widest text-xs rounded-xl"
+                                    >
+                                        {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Deploy to Network"}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
 
-                {/* Models Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {/* Models Content */}
+                <div className="grid grid-cols-1 gap-8">
                     {modelsQuery.isLoading ? (
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
-                            <Loader2 className="size-10 animate-spin text-amber-500/40" />
-                            <p className="text-sm font-bold text-muted-foreground animate-pulse">Synchronizing Catalog...</p>
-                        </div>
-                    ) : filteredModels.length === 0 ? (
-                        <div className="col-span-full py-20 text-center border-2 border-dashed border-border/50 rounded-3xl">
-                            <Box className="size-12 text-muted-foreground/20 mx-auto mb-4" />
-                            <p className="text-muted-foreground font-medium">No models found matching your search.</p>
+                        <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-50">
+                            <Zap className="size-10 animate-pulse text-primary" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Synchronizing Network Data...</p>
                         </div>
                     ) : (
                         filteredModels.map((model) => (
-                            <Card key={model.id} className="group bg-card/40 border-border/50 hover:border-amber-500/30 transition-all duration-300 overflow-hidden relative shadow-xl shadow-black/10">
-                                <CardHeader className="pb-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:bg-amber-500/20 transition-colors">
-                                            <Tag className="size-4 text-amber-500" />
+                            <Card key={model.id} className="overflow-hidden border-border/40 bg-card/20 group hover:bg-card/30 transition-all duration-500">
+                                <div className="flex flex-col lg:flex-row lg:items-stretch">
+                                    {/* Left Info Panel */}
+                                    <div className="p-8 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-border/40 space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                                                <Activity className="size-6" />
+                                            </div>
+                                            <Button 
+                                                variant="ghost" size="icon" 
+                                                className="size-9 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all"
+                                                onClick={() => confirm(`Wipe ${model.name} from directory?`) && deleteMutation.mutate(model.id)}
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </Button>
                                         </div>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="size-8 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                                            onClick={() => {
-                                                if (confirm(`Are you sure you want to delete ${model.name}?`)) {
-                                                    deleteMutation.mutate(model.id);
-                                                }
-                                            }}
-                                            disabled={deleteMutation.isPending}
-                                        >
-                                            {deleteMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-4" />}
-                                        </Button>
+                                        <div className="space-y-1">
+                                            <h3 className="text-2xl font-black tracking-tighter text-foreground">{model.name}</h3>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 bg-muted/20 px-2 py-0.5 rounded-lg border border-border/50">
+                                                    {model.slug}
+                                                </code>
+                                                <span className="text-[10px] font-medium text-muted-foreground/30">•</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">{model.company.name}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="pt-4">
-                                        <CardTitle className="text-lg font-black tracking-tight">{model.name}</CardTitle>
-                                        <code className="text-[10px] font-mono text-muted-foreground/60 bg-muted/30 px-1.5 py-0.5 rounded mt-1 block w-fit italic">
-                                            {model.slug}
-                                        </code>
+
+                                    {/* Right Mappings/Provider Panel */}
+                                    <div className="flex-1 p-8 bg-background/20 backdrop-blur-sm">
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Active Provider Mappings</h4>
+                                                <Button variant="ghost" size="sm" className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/10">
+                                                    <Plus className="size-3 mr-1" /> Add Provider
+                                                </Button>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {model.modelProviderMappings?.map((mapping: any) => (
+                                                    <div key={mapping.id} className="relative group/mapping p-5 rounded-2xl bg-card/40 border border-border/50 hover:border-primary/30 transition-all duration-300">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={cn(
+                                                                    "size-3 rounded-full animate-pulse",
+                                                                    mapping.enabled ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" : "bg-destructive/40"
+                                                                )} />
+                                                                <div className="space-y-0.5">
+                                                                    <div className="text-sm font-black text-foreground">{mapping.provider.name}</div>
+                                                                    <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Network Route Endpoint</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-8">
+                                                                <div className="flex items-center gap-6">
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Input/1k</div>
+                                                                        <div className="text-xs font-black text-foreground flex items-center gap-1.5">
+                                                                            <Coins className="size-3 text-primary/60" />
+                                                                            ${Number(mapping.inputPricePer1k).toFixed(4)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Output/1k</div>
+                                                                        <div className="text-xs font-black text-foreground flex items-center gap-1.5">
+                                                                            <Coins className="size-3 text-primary/60" />
+                                                                            ${Number(mapping.outputPricePer1k).toFixed(4)}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <Button 
+                                                                        size="icon" variant="ghost" 
+                                                                        className="size-9 rounded-xl bg-background/50 border border-border/50 hover:text-primary transition-all"
+                                                                        onClick={() => setEditingMapping(mapping)}
+                                                                    >
+                                                                        <Settings2 className="size-4" />
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="icon" variant="ghost" 
+                                                                        className={cn(
+                                                                            "size-9 rounded-xl border border-border/50 transition-all",
+                                                                            mapping.enabled ? "text-emerald-500 hover:bg-emerald-500/10" : "text-destructive hover:bg-destructive/10"
+                                                                        )}
+                                                                        onClick={() => updateMappingMutation.mutate({ id: mapping.id, data: { enabled: !mapping.enabled } })}
+                                                                    >
+                                                                        <Power className="size-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="pt-0 pb-6">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground/80 font-medium bg-background/40 p-3 rounded-xl border border-border/50">
-                                        <Building2 className="size-3.5 text-amber-500/50" />
-                                        {model.company.name}
-                                    </div>
-                                </CardContent>
-                                <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-amber-500 group-hover:w-full transition-all duration-500" />
+                                </div>
                             </Card>
                         ))
                     )}
                 </div>
+
+                {/* Edit Mapping Modal */}
+                {editingMapping && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-300">
+                        <Card className="w-full max-w-md border-primary/20 bg-card/90 backdrop-blur-2xl shadow-2xl overflow-hidden">
+                            <div className="p-8 space-y-6">
+                                <div className="flex items-center gap-4 text-primary">
+                                    <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                        <Coins className="size-6" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <h3 className="text-xl font-black tracking-tight">Configure Route Economics</h3>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{editingMapping.provider.name} Pricing</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Input Price / 1k</Label>
+                                        <Input 
+                                            type="number"
+                                            value={editingMapping.inputPricePer1k}
+                                            onChange={(e) => setEditingMapping({...editingMapping, inputPricePer1k: Number(e.target.value)})}
+                                            className="h-12 bg-background/50 border-border/50 rounded-xl font-bold"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Output Price / 1k</Label>
+                                        <Input 
+                                            type="number"
+                                            value={editingMapping.outputPricePer1k}
+                                            onChange={(e) => setEditingMapping({...editingMapping, outputPricePer1k: Number(e.target.value)})}
+                                            className="h-12 bg-background/50 border-border/50 rounded-xl font-bold"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Markup Multiplier</Label>
+                                    <Input 
+                                        type="number"
+                                        value={editingMapping.markupMultiplier}
+                                        onChange={(e) => setEditingMapping({...editingMapping, markupMultiplier: Number(e.target.value)})}
+                                        className="h-12 bg-background/50 border-border/50 rounded-xl font-bold"
+                                    />
+                                    <p className="text-[9px] text-muted-foreground italic ml-1">Current total multiplier: {editingMapping.markupMultiplier}x base cost</p>
+                                </div>
+
+                                <div className="flex items-center gap-3 pt-4">
+                                    <Button 
+                                        variant="ghost" 
+                                        className="flex-1 h-12 rounded-xl font-black uppercase tracking-widest text-xs"
+                                        onClick={() => setEditingMapping(null)}
+                                    >
+                                        Discard
+                                    </Button>
+                                    <Button 
+                                        className="flex-1 h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-2"
+                                        onClick={() => updateMappingMutation.mutate({ 
+                                            id: editingMapping.id, 
+                                            data: {
+                                                inputPricePer1k: editingMapping.inputPricePer1k,
+                                                outputPricePer1k: editingMapping.outputPricePer1k,
+                                                markupMultiplier: editingMapping.markupMultiplier
+                                            } 
+                                        })}
+                                    >
+                                        {updateMappingMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                                        Save Changes
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </div>
         </DashboardLayout>
     );

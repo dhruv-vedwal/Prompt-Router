@@ -10,6 +10,8 @@ import { LlmResponse } from "./llms/Base";
 import logger from "./lib/logger";
 import { BillingService } from "./lib/BillingService";
 import { RoutingService } from "./lib/RoutingService";
+import { RateLimiter } from "./lib/RateLimiter";
+import { SecurityService } from "./lib/SecurityService";
 import { swagger } from '@elysiajs/swagger';
 
 const app = new Elysia()
@@ -30,14 +32,42 @@ const app = new Elysia()
 .post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {
   const startTime = performance.now();
   const model = body.model;
-  const [_companyName, providerModelName] = model.split("/");
   
-  const apiKeyDb = await prisma.apiKey.findFirst({
-    where: { apiKey, disabled: false, deleted: false },
-    select: { user: true, id: true }
+  if (!apiKey) return status(401, { message: "No API key provided" });
+
+  // 1. Fetch ALL active keys (we have to verify hashes locally for safety)
+  // In a high-scale production, we would use a more efficient lookup (like a key-id prefix)
+  const allKeys = await prisma.apiKey.findMany({
+    where: { disabled: false, deleted: false },
+    select: { user: true, id: true, apiKey: true, rpmLimit: true, tpmLimit: true }
   });
 
+  const apiKeyDb = allKeys.find(k => SecurityService.verifyKey(apiKey, k.apiKey));
   if (!apiKeyDb) return status(403, { message: "Invalid api key" });
+
+  // 2. Migration: If key is plain text, hash it now
+  if (apiKey === apiKeyDb.apiKey) {
+    await prisma.apiKey.update({
+      where: { id: apiKeyDb.id },
+      data: { apiKey: SecurityService.hashKey(apiKey) }
+    });
+    logger.info(`Key ${apiKeyDb.id} automatically migrated to secure hash.`);
+  }
+
+  // 3. Rate Limit Check
+  const inputText = body.messages.map((m: any) => m.content).join(" ");
+  const estimatedInputTokens = BillingService.estimateTokens(inputText);
+  
+  const rateLimit = RateLimiter.check(
+    apiKeyDb.id, 
+    apiKeyDb.rpmLimit, 
+    apiKeyDb.tpmLimit, 
+    estimatedInputTokens
+  );
+
+  if (!rateLimit.allowed) {
+    return status(429, { message: rateLimit.reason || "Rate limit exceeded" });
+  }
 
   const modelDb = await prisma.model.findFirst({ where: { slug: model } });
   if (!modelDb) return status(403, { message: "Invalid model" });
@@ -45,10 +75,7 @@ const app = new Elysia()
   const provider = await RoutingService.selectProvider(modelDb.id);
   if (!provider) return status(403, { message: "No provider found" });
 
-  // 1. Reserve Credits
-  const inputText = body.messages.map((m: any) => m.content).join(" ");
-  const estimatedInputTokens = BillingService.estimateTokens(inputText);
-  
+  // 4. Reserve Credits
   let reservation: any;
   try {
     reservation = await BillingService.reserve(apiKeyDb.user.id, estimatedInputTokens, provider);
@@ -56,7 +83,7 @@ const app = new Elysia()
     return status(402, { message: e.message || "Insufficient balance" });
   }
 
-  // 2. Create Conversation (Pending)
+  // 5. Create Conversation (Pending)
   const conversation = await prisma.conversation.create({
     data: {
       userId: apiKeyDb.user.id,
@@ -73,6 +100,8 @@ const app = new Elysia()
 
   try {
     let response: LlmResponse;
+    const [_companyName, providerModelName] = model.split("/");
+
     if (provider.provider.name === "Google API" || provider.provider.name === "Google Vertex") {
       response = await Gemini.chat(providerModelName, body.messages);
     } else if (provider.provider.name === "OpenAI") {
@@ -83,7 +112,7 @@ const app = new Elysia()
       throw new Error("Provider not implemented");
     }
 
-    // 3. Settle Credits
+    // 6. Settle Credits
     await BillingService.settle(
       apiKeyDb.user.id,
       reservation.id,
@@ -93,7 +122,7 @@ const app = new Elysia()
       conversation.id
     );
 
-    // 4. Update API Key usage
+    // 7. Update API Key usage
     const actualCharge = BillingService.calculateCharge(
       response.inputTokensConsumed,
       response.outputTokensConsumed,
@@ -107,7 +136,7 @@ const app = new Elysia()
       data: { creditsConsumed: { increment: actualCharge } }
     });
 
-    // 5. Update conversation with output and duration
+    // 8. Update conversation with output and duration
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { 
@@ -116,7 +145,7 @@ const app = new Elysia()
       }
     });
 
-    // 6. Record to ChatMessage if it's a playground session
+    // 9. Record to ChatMessage
     if (body.sessionId) {
       const lastUserMessage = body.messages[body.messages.length - 1];
       await prisma.chatMessage.create({
@@ -152,14 +181,38 @@ const app = new Elysia()
 .post("/api/v1/chat/completions/stream", async ({ status, bearer: apiKey, body, set }) => {
   const startTime = performance.now();
   const model = body.model;
-  const [_companyName, providerModelName] = model.split("/");
   
-  const apiKeyDb = await prisma.apiKey.findFirst({
-    where: { apiKey, disabled: false, deleted: false },
-    select: { user: true, id: true }
+  if (!apiKey) return status(401, { message: "No API key provided" });
+
+  const allKeys = await prisma.apiKey.findMany({
+    where: { disabled: false, deleted: false },
+    select: { user: true, id: true, apiKey: true, rpmLimit: true, tpmLimit: true }
   });
 
+  const apiKeyDb = allKeys.find(k => SecurityService.verifyKey(apiKey, k.apiKey));
   if (!apiKeyDb) return status(403, { message: "Invalid api key" });
+
+  if (apiKey === apiKeyDb.apiKey) {
+    await prisma.apiKey.update({
+      where: { id: apiKeyDb.id },
+      data: { apiKey: SecurityService.hashKey(apiKey) }
+    });
+  }
+
+  // 1. Rate Limit Check
+  const inputText = body.messages.map((m: any) => m.content).join(" ");
+  const estimatedInputTokens = BillingService.estimateTokens(inputText);
+  
+  const rateLimit = RateLimiter.check(
+    apiKeyDb.id, 
+    apiKeyDb.rpmLimit, 
+    apiKeyDb.tpmLimit, 
+    estimatedInputTokens
+  );
+
+  if (!rateLimit.allowed) {
+    return status(429, { message: rateLimit.reason || "Rate limit exceeded" });
+  }
 
   const modelDb = await prisma.model.findFirst({ where: { slug: model } });
   if (!modelDb) return status(403, { message: "Invalid model" });
@@ -167,9 +220,6 @@ const app = new Elysia()
   const provider = await RoutingService.selectProvider(modelDb.id);
   if (!provider) return status(403, { message: "No provider found" });
 
-  const inputText = body.messages.map((m: any) => m.content).join(" ");
-  const estimatedInputTokens = BillingService.estimateTokens(inputText);
-  
   let reservation: any;
   try {
     reservation = await BillingService.reserve(apiKeyDb.user.id, estimatedInputTokens, provider);
@@ -241,7 +291,6 @@ const app = new Elysia()
             }
           });
 
-          // Record to ChatMessage if it's a playground session
           if (body.sessionId) {
             const lastUserMessage = body.messages[body.messages.length - 1];
             await prisma.chatMessage.create({
@@ -266,6 +315,7 @@ const app = new Elysia()
 
       try {
         let stream;
+        const [_companyName, providerModelName] = model.split("/");
         if (provider.provider.name === "Google API" || provider.provider.name === "Google Vertex") {
           stream = Gemini.stream(providerModelName, body.messages);
         } else if (provider.provider.name === "OpenAI") {
@@ -302,10 +352,7 @@ const app = new Elysia()
         controller.error(error);
       }
     },
-    async cancel() {
-      // If the client cancels, we should try to settle what was already generated
-      // This is a bit tricky with Elysia's ReadableStream but better than nothing.
-    }
+    async cancel() {}
   });
 }, {
   body: Conversation
@@ -313,7 +360,8 @@ const app = new Elysia()
   logger.info(`🚀 API Backend is running on http://localhost:4000`);
   setInterval(() => {
     BillingService.cleanupStaleReservations().catch(err => logger.error(`Cleanup job failed: ${err}`));
-  }, 5 * 60 * 1000);
+    RateLimiter.cleanup();
+  }, 60 * 1000);
 });
 
 export type App = typeof app;
