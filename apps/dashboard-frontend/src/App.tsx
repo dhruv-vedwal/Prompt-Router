@@ -22,7 +22,7 @@ import { AdminUsers } from "./pages/admin/Users";
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 
-const API_URL = "http://localhost:3000";
+const API_URL = process.env.API_URL || "http://localhost:3000";
 const client = treaty<App>(API_URL, {
   fetch: {
     credentials: 'include'
