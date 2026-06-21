@@ -55,9 +55,16 @@ export const app = new Elysia({ prefix: "models" })
         })
     })
     .get("/:id/providers", async ({ params: { id } }) => {
-        const providers = await ModelsService.getModelProviders(Number(id));
+        const mappings = await ModelsService.getModelProviders(Number(id));
         return {
-            providers
+            providers: mappings.map(m => ({
+                id: m.id,
+                providerId: m.provider.id,
+                providerName: m.provider.name,
+                providerWebsite: m.provider.website,
+                inputTokenCost: Number(m.inputPricePer1k),
+                outputTokenCost: Number(m.outputPricePer1k)
+            }))
         }
     }, {
         response: {
@@ -86,7 +93,13 @@ export const app = new Elysia({ prefix: "models" })
     })
     .post("/mapping", async ({ body, role, status }) => {
         if (role !== "ADMIN") return status(403, { message: "Forbidden" });
-        return await ModelsService.createModelProviderMapping(body);
+        return await ModelsService.createModelProviderMapping({
+            modelId: Number(body.modelId),
+            providerId: Number(body.providerId),
+            inputPricePer1k: Number(body.inputTokenCost),
+            outputPricePer1k: Number(body.outputTokenCost),
+            markupMultiplier: 1.2
+        });
     }, {
         body: ModelsModel.createModelProviderSchema
     })

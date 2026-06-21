@@ -39,6 +39,7 @@ export abstract class AuthService {
                 id
             },
             select: {
+                email: true,
                 balance: true,
                 role: true
             }
@@ -47,9 +48,20 @@ export abstract class AuthService {
         if (!user) return null;
 
         return {
+            email: user.email,
             balance: user.balance.toString(),
             role: user.role
         };
     }
     
+    static async updatePassword(id: number, newPassword: string): Promise<void> {
+        await prisma.user.update({
+            where: {
+                id
+            },
+            data: {
+                password: await Bun.password.hash(newPassword)
+            }
+        });
+    }
 }

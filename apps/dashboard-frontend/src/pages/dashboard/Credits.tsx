@@ -1,23 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-    Coins,
-    Plus,
-    Loader2,
-    CheckCircle2,
-    AlertCircle,
-    Wallet,
-    TrendingUp,
-} from "lucide-react";
+import { Coins, Plus, Loader2, CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
 
 export function Credits() {
     const elysiaClient = useElysiaClient();
@@ -34,12 +18,12 @@ export function Credits() {
 
     const userProfileQuery = useQuery({
         queryKey: ["user-profile"],
-        queryFn: async() => {
+        queryFn: async () => {
             const response = await elysiaClient["auth"].profile.get();
-            if (response.error) throw new Error("Error while fetching user details")
-                return response.data;
-        }
-    })
+            if (response.error) throw new Error("Error while fetching user details");
+            return response.data;
+        },
+    });
 
     const onrampMutation = useMutation({
         mutationFn: async () => {
@@ -57,174 +41,178 @@ export function Credits() {
     });
 
     const apiKeys = apiKeysQuery.data?.apiKeys ?? [];
-    const totalCreditsUsed = apiKeys.reduce(
-        (sum, k) => sum + Number(k.creditsConsumed ?? 0),
-        0
-    );
-    const balance = userProfileQuery.data?.balance;
+    const totalCreditsUsed = apiKeys.reduce((sum, k) => sum + Number(k.creditsConsumed ?? 0), 0);
+    const balance = Number(userProfileQuery.data?.balance ?? 0);
 
     return (
         <DashboardLayout>
-            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Header */}
-                <div className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                        Billing & Credits
-                    </h1>
-                    <p className="text-muted-foreground/80 max-w-2xl">
-                        Monitor your consumption and top up your account balance. Usage is calculated per-key and settled in real-time.
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6 gap-4">
+                <div>
+                    <h1 className="text-[21px] font-[600] tracking-[-0.01em] m-0 mb-1">Credits</h1>
+                    <p className="m-0 text-[13px]" style={{ color: "var(--foreground-2)" }}>
+                        Monitor your balance and top up your account.
+                    </p>
+                </div>
+            </div>
+
+            {/* Balance cards */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="rounded-[10px] p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[12.5px]" style={{ color: "var(--foreground-2)" }}>Available credits</span>
+                        <div
+                            className="size-7 rounded-[6px] flex items-center justify-center"
+                            style={{ background: "rgba(62,99,221,0.12)", border: "1px solid rgba(62,99,221,0.2)" }}
+                        >
+                            <TrendingUp className="size-3.5" style={{ color: "#7C96EE" }} />
+                        </div>
+                    </div>
+                    <div className="text-[28px] font-[600] tracking-[-0.01em]">
+                        {userProfileQuery.isLoading ? (
+                            <Loader2 className="size-5 animate-spin" style={{ color: "var(--foreground-3)" }} />
+                        ) : (
+                            balance.toLocaleString()
+                        )}
+                    </div>
+                    <div className="text-[12px] mt-1" style={{ color: "var(--foreground-3)" }}>
+                        Across {apiKeys.length} environment{apiKeys.length !== 1 ? "s" : ""}
+                    </div>
+                </div>
+
+                <div className="rounded-[10px] p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[12.5px]" style={{ color: "var(--foreground-2)" }}>Credits used</span>
+                        <div
+                            className="size-7 rounded-[6px] flex items-center justify-center"
+                            style={{ background: "rgba(62,179,95,0.1)", border: "1px solid rgba(62,179,95,0.2)" }}
+                        >
+                            <Coins className="size-3.5" style={{ color: "#3EB35F" }} />
+                        </div>
+                    </div>
+                    <div className="text-[28px] font-[600] tracking-[-0.01em]">
+                        {apiKeysQuery.isLoading ? (
+                            <Loader2 className="size-5 animate-spin" style={{ color: "var(--foreground-3)" }} />
+                        ) : (
+                            totalCreditsUsed.toLocaleString()
+                        )}
+                    </div>
+                    <div className="text-[12px] mt-1" style={{ color: "var(--foreground-3)" }}>
+                        Across all keys
+                    </div>
+                </div>
+            </div>
+
+            {/* Per-key breakdown */}
+            {apiKeys.length > 0 && (
+                <div className="mb-3 rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                    <div className="px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <h2 className="text-[14.5px] font-[600] m-0">Usage by key</h2>
+                    </div>
+                    <table className="w-full" style={{ borderCollapse: "collapse" }}>
+                        <thead>
+                            <tr>
+                                {["Key name", "Credits consumed", "Status"].map((col, i) => (
+                                    <th
+                                        key={i}
+                                        className={`px-[18px] py-[9px] text-[11.5px] font-[600] ${i === 1 ? "text-right" : "text-left"}`}
+                                        style={{ color: "var(--foreground-3)", borderBottom: "1px solid var(--border)" }}
+                                    >
+                                        {col}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {apiKeys.map((key, idx) => (
+                                <tr
+                                    key={key.id}
+                                    style={{
+                                        borderBottom: idx === apiKeys.length - 1 ? "none" : "1px solid var(--border)",
+                                    }}
+                                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)")}
+                                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                                >
+                                    <td className="px-[18px] py-[13px] text-[13px] font-[500]">{key.name}</td>
+                                    <td className="px-[18px] py-[13px] text-[13px] text-right tabular-nums" style={{ color: "var(--foreground-2)" }}>
+                                        {Number(key.creditsConsumed ?? 0).toLocaleString()}
+                                    </td>
+                                    <td className="px-[18px] py-[13px]">
+                                        <span className="flex items-center gap-[7px] text-[13px]" style={{ color: "var(--foreground-2)" }}>
+                                            <span className="size-[6px] rounded-full" style={{ background: key.disabled ? "var(--foreground-3)" : "var(--success)" }} />
+                                            {key.disabled ? "Disabled" : "Active"}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Top-up section */}
+            <div className="rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div className="px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <h2 className="text-[14.5px] font-[600] m-0">Top up account</h2>
+                    <p className="text-[13px] m-0 mt-0.5" style={{ color: "var(--foreground-2)" }}>
+                        Select a credit bundle to increase your quota.
                     </p>
                 </div>
 
-                {/* Balance & usage */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {onrampMutation.isSuccess && onrampMutation.data && (
-                        <Card className="sm:col-span-2 bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5 overflow-hidden relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent opacity-50" />
-                            <CardContent className="pt-8 pb-8 relative z-10">
-                                <div className="flex items-center gap-6">
-                                    <div className="size-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_20px_-10px_rgba(16,185,129,0.5)]">
-                                        <Wallet className="size-8 text-emerald-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase tracking-widest text-emerald-400/70">Transaction Success</p>
-                                        <p className="text-4xl font-black tracking-tight text-foreground mt-1">
-                                            {Number(onrampMutation.data.credits ?? 0).toLocaleString()} <span className="text-xl font-medium text-muted-foreground/50 ml-1">Credits</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                <div className="p-[18px] space-y-4">
+                    {/* Bundle option */}
+                    <div
+                        className="flex items-center gap-4 p-4 rounded-[8px] transition-colors"
+                        style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                    >
+                        <div
+                            className="size-10 rounded-[8px] flex items-center justify-center flex-none"
+                            style={{ background: "rgba(62,99,221,0.12)", border: "1px solid rgba(62,99,221,0.2)" }}
+                        >
+                            <Plus className="size-5" style={{ color: "#7C96EE" }} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-[14px] font-[600] m-0">1,000 Credits</p>
+                            <p className="text-[12px] m-0 mt-0.5" style={{ color: "var(--foreground-2)" }}>Standard top-up bundle</p>
+                        </div>
+                        <button
+                            onClick={() => onrampMutation.mutate()}
+                            disabled={onrampMutation.isPending}
+                            className="flex items-center gap-2 h-9 px-5 rounded-[6px] text-[12.5px] font-[500] text-white transition-colors disabled:opacity-50 flex-none"
+                            style={{ background: "var(--accent-blue)" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-blue-hover)")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-blue)")}
+                        >
+                            {onrampMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                            {onrampMutation.isPending ? "Processing…" : "Buy credits"}
+                        </button>
+                    </div>
+
+                    {/* Success banner */}
+                    {onrampMutation.isSuccess && (
+                        <div
+                            className="flex items-center gap-3 px-4 py-3 rounded-[8px] text-[13px]"
+                            style={{ background: "rgba(62,179,95,0.08)", border: "1px solid rgba(62,179,95,0.2)", color: "#3EB35F" }}
+                        >
+                            <CheckCircle2 className="size-4 flex-none" />
+                            <span>
+                                <strong>Success!</strong> 1,000 credits added. New balance:{" "}
+                                <strong>{Number(onrampMutation.data?.credits ?? 0).toLocaleString()}</strong>
+                            </span>
+                        </div>
                     )}
 
-                    <Card className="bg-card/40 border-border/50 shadow-lg shadow-primary/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <CardHeader className="pb-2 relative z-10">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Available Credits</span>
-                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                    <TrendingUp className="size-4" />
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="relative z-10">
-                            <p className="text-4xl font-black tracking-tight text-foreground">
-                                {userProfileQuery.isLoading ? (
-                                    <Loader2 className="size-6 animate-spin text-primary" />
-                                ) : (
-                                    Number(balance ?? 0).toLocaleString()
-                                )}
-                            </p>
-                            <p className="text-xs font-medium text-muted-foreground/70 mt-2 flex items-center gap-1.5">
-                                <span className="size-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
-                                Provisioned for {apiKeys.length} environments
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-card/40 border-border/50 shadow-lg shadow-primary/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <CardHeader className="pb-2 relative z-10">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Usage Breakdown</span>
-                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                                    <Coins className="size-4" />
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="relative z-10">
-                            {apiKeysQuery.isLoading ? (
-                                <Loader2 className="size-5 animate-spin text-primary" />
-                            ) : apiKeys.length === 0 ? (
-                                <p className="text-sm font-medium text-muted-foreground/60 italic py-2">No active sessions found</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {apiKeys.slice(0, 3).map((key) => (
-                                        <div key={key.id} className="flex items-center justify-between text-sm group/item">
-                                            <span className="text-muted-foreground/80 group-hover/item:text-foreground transition-colors truncate mr-4 font-medium">{key.name}</span>
-                                            <span className="tabular-nums font-bold text-foreground">
-                                                {Number(key.creditsConsumed ?? 0).toLocaleString()}
-                                            </span>
-                                        </div>
-                                    ))}
-                                    {apiKeys.length > 3 && (
-                                        <p className="text-[10px] font-bold text-primary/50 uppercase tracking-widest pt-1 border-t border-border/20">
-                                            +{apiKeys.length - 3} other credentials
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Add credits */}
-                <Card className="bg-card/40 border-border/50 shadow-xl shadow-black/20 overflow-hidden relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none" />
-                    <CardHeader className="relative z-10">
-                        <CardTitle className="text-xl font-bold text-foreground">Top Up Account</CardTitle>
-                        <CardDescription className="text-muted-foreground/70">
-                            Select a credit bundle to increase your quota.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="relative z-10">
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
-                            <div className="flex items-center gap-5 rounded-2xl border border-border/50 bg-background/40 px-6 py-5 flex-1 group-hover:border-primary/30 transition-colors">
-                                <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                                    <Plus className="size-6 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="text-lg font-bold text-foreground">1,000 Credits</p>
-                                    <p className="text-sm text-muted-foreground/70">Institutional Tier top-up</p>
-                                </div>
-                            </div>
-
-                            <Button
-                                size="lg"
-                                className="h-20 px-10 rounded-2xl font-black text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all group-hover:scale-[1.02]"
-                                onClick={() => onrampMutation.mutate()}
-                                disabled={onrampMutation.isPending}
-                            >
-                                {onrampMutation.isPending ? (
-                                    <>
-                                        <Loader2 className="size-6 animate-spin mr-3" />
-                                        PROCESSING
-                                    </>
-                                ) : (
-                                    <>
-                                        BUY CREDITS
-                                    </>
-                                )}
-                            </Button>
+                    {/* Error banner */}
+                    {onrampMutation.isError && (
+                        <div
+                            className="flex items-center gap-3 px-4 py-3 rounded-[8px] text-[13px]"
+                            style={{ background: "rgba(229,72,77,0.08)", border: "1px solid rgba(229,72,77,0.2)", color: "#e5484d" }}
+                        >
+                            <AlertCircle className="size-4 flex-none" />
+                            {onrampMutation.error?.message || "Failed to add credits. Please try again."}
                         </div>
-
-                        {onrampMutation.isSuccess && (
-                            <div className="flex items-start gap-4 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-6 py-5 mt-8 animate-in slide-in-from-top-4 duration-500">
-                                <div className="p-1.5 rounded-full bg-emerald-500/20">
-                                    <CheckCircle2 className="size-4 shrink-0" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-emerald-300">Transaction Finalized</p>
-                                    <p className="text-emerald-400/80 leading-relaxed">
-                                        1,000 credits have been successfully allocated to your global pool. 
-                                        New balance: <span className="font-black">{Number(onrampMutation.data?.credits ?? 0).toLocaleString()}</span>
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {onrampMutation.isError && (
-                            <div className="flex items-start gap-4 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-2xl px-6 py-5 mt-6">
-                                <div className="p-1.5 rounded-full bg-destructive/20">
-                                    <AlertCircle className="size-4 shrink-0" />
-                                </div>
-                                <span className="font-bold py-1">
-                                    {onrampMutation.error?.message || "Failed to add credits. Please try again."}
-                                </span>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                    )}
+                </div>
             </div>
         </DashboardLayout>
     );

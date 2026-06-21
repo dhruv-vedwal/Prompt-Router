@@ -1,20 +1,11 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-    Terminal,
-    Copy,
-    Check,
-    Code2,
-    BookOpen,
-    ArrowRight
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Terminal, Copy, Check, Code2, BookOpen } from "lucide-react";
 
 const sdkData = [
     {
         id: "python",
         name: "Python",
-        icon: Terminal,
         install: "pip install promptrouter-sdk",
         example: `import openrouter_sdk
 from openrouter_sdk.api import DefaultApi
@@ -26,18 +17,17 @@ client.api_client.configuration.api_key['Authorization'] = 'YOUR_API_KEY'
 
 # Chat with a model
 request = PostApiV1ChatCompletionsRequest(
-    model="openai/gpt-4",
+    model="google/gemini-2.5-flash",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 
 response = client.post_api_v1_chat_completions(request)
 print(response.content)`,
-        docs: "#"
+        docs: "http://localhost:4000/swagger",
     },
     {
         id: "typescript",
         name: "TypeScript / JS",
-        icon: Code2,
         install: "npm install @promptrouter/sdk",
         example: `import { DefaultApi, Configuration } from '@promptrouter/sdk';
 
@@ -49,157 +39,167 @@ const api = new DefaultApi(config);
 
 async function chat() {
     const response = await api.postApiV1ChatCompletions({
-        model: 'openai/gpt-4',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: 'Hello!' }]
     });
-    
     console.log(response.content);
 }`,
-        docs: "#"
-    }
+        docs: "http://localhost:4000/swagger",
+    },
 ];
 
 export function Sdks() {
     const [activeTab, setActiveTab] = useState("python");
-    const [copied, setCopied] = useState(false);
+    const [copiedInstall, setCopiedInstall] = useState(false);
+    const [copiedCode, setCopiedCode] = useState(false);
 
     const activeSdk = sdkData.find(s => s.id === activeTab)!;
 
-    const copyToClipboard = (text: string) => {
+    const copyText = (text: string, setter: (v: boolean) => void) => {
         navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setter(true);
+        setTimeout(() => setter(false), 2000);
     };
 
     return (
         <DashboardLayout>
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Header */}
-                <div className="flex flex-col gap-2">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                        Developer Portal
-                    </h1>
-                    <p className="text-muted-foreground max-w-2xl">
-                        Integrate PromptRouter into your applications using our official,
-                        auto-generated SDKs. Built for performance and type-safety.
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6 gap-4">
+                <div>
+                    <h1 className="text-[21px] font-[600] tracking-[-0.01em] m-0 mb-1">SDKs</h1>
+                    <p className="m-0 text-[13px]" style={{ color: "var(--foreground-2)" }}>
+                        Integrate PromptRouter using official, auto-generated SDKs.
                     </p>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Select Language */}
-                    <div className="lg:col-span-1 space-y-4">
-                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider px-2">
-                            Choose Language
-                        </h3>
-                        <div className="space-y-2">
-                            {sdkData.map((sdk) => (
+            <div className="grid grid-cols-3 gap-3">
+                {/* Left: language selector + resources */}
+                <div className="flex flex-col gap-3">
+                    {/* Language tabs */}
+                    <div className="rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <div className="px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                            <h2 className="text-[14px] font-[600] m-0">Language</h2>
+                        </div>
+                        <div className="p-2 flex flex-col gap-1">
+                            {sdkData.map(sdk => (
                                 <button
                                     key={sdk.id}
                                     onClick={() => setActiveTab(sdk.id)}
-                                    className={cn(
-                                        "w-full flex items-center justify-between p-4 rounded-xl border transition-all text-left group relative overflow-hidden",
-                                        activeTab === sdk.id
-                                            ? "bg-primary/10 border-primary/40 ring-1 ring-primary/30 shadow-lg shadow-primary/10"
-                                            : "bg-card/40 border-border/50 hover:border-border hover:bg-card/60"
-                                    )}
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-left transition-all w-full"
+                                    style={{
+                                        background: activeTab === sdk.id ? "rgba(255,255,255,0.07)" : "transparent",
+                                        color: activeTab === sdk.id ? "var(--foreground)" : "var(--foreground-2)",
+                                    }}
+                                    onMouseEnter={e => { if (activeTab !== sdk.id) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.045)"; }}
+                                    onMouseLeave={e => { if (activeTab !== sdk.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                                 >
-                                    {activeTab === sdk.id && (
-                                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
-                                    )}
-                                    <div className="flex items-center gap-4 relative z-10">
-                                        <div className={cn(
-                                            "p-2.5 rounded-lg transition-all duration-300",
-                                            activeTab === sdk.id 
-                                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                                                : "bg-muted/50 text-muted-foreground group-hover:text-foreground group-hover:bg-muted"
-                                        )}>
-                                            <sdk.icon className="size-5" />
-                                        </div>
-                                        <div>
-                                            <div className={cn(
-                                                "font-bold transition-colors text-base",
-                                                activeTab === sdk.id ? "text-foreground" : "text-foreground/60 group-hover:text-foreground/90"
-                                            )}>
-                                                {sdk.name}
-                                            </div>
-                                            <div className={cn(
-                                                "text-xs transition-colors",
-                                                activeTab === sdk.id ? "text-foreground/70" : "text-muted-foreground"
-                                            )}>Official SDK</div>
-                                        </div>
+                                    <div
+                                        className="size-7 rounded-[6px] flex items-center justify-center flex-none"
+                                        style={{
+                                            background: activeTab === sdk.id ? "rgba(62,99,221,0.14)" : "var(--surface-2)",
+                                            border: `1px solid ${activeTab === sdk.id ? "rgba(62,99,221,0.25)" : "var(--border)"}`,
+                                        }}
+                                    >
+                                        {sdk.id === "python" ? (
+                                            <Terminal className="size-3.5" style={{ color: activeTab === sdk.id ? "#7C96EE" : "var(--foreground-3)" }} />
+                                        ) : (
+                                            <Code2 className="size-3.5" style={{ color: activeTab === sdk.id ? "#7C96EE" : "var(--foreground-3)" }} />
+                                        )}
                                     </div>
-                                    <ArrowRight className={cn(
-                                        "size-4 transition-all duration-300",
-                                        activeTab === sdk.id ? "translate-x-0 opacity-100 text-primary" : "-translate-x-2 opacity-0"
-                                    )} />
+                                    <div>
+                                        <div className="text-[13px] font-[500]">{sdk.name}</div>
+                                        <div className="text-[11px]" style={{ color: "var(--foreground-3)" }}>Official SDK</div>
+                                    </div>
                                 </button>
                             ))}
                         </div>
+                    </div>
 
-                        {/* Resources */}
-                        <div className="p-6 rounded-2xl bg-card/40 border border-border/50 space-y-5 mt-8 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50" />
-                            <h4 className="font-bold flex items-center gap-2 text-foreground relative z-10">
-                                <BookOpen className="size-4 text-primary" />
-                                Resources
-                            </h4>
-                            <ul className="space-y-4 text-sm relative z-10">
-                                <li>
-                                    <a href="http://localhost:4000/swagger" target="_blank" rel="noreferrer" className="text-foreground/70 hover:text-primary transition-all flex items-center gap-3 group/link">
-                                        <div className="size-1.5 rounded-full bg-primary/40 group-hover/link:bg-primary group-hover/link:scale-125 transition-all shadow-primary/40" />
-                                        <span className="font-medium">Interactive API Docs</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="/api-keys" className="text-foreground/70 hover:text-primary transition-all flex items-center gap-3 group/link">
-                                        <div className="size-1.5 rounded-full bg-primary/40 group-hover/link:bg-primary group-hover/link:scale-125 transition-all shadow-primary/40" />
-                                        <span className="font-medium">Auth Specification</span>
-                                    </a>
-                                </li>
-                            </ul>
+                    {/* Resources */}
+                    <div className="rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <div className="px-[18px] py-[14px] flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                            <BookOpen className="size-4" style={{ color: "var(--foreground-3)" }} />
+                            <h2 className="text-[14px] font-[600] m-0">Resources</h2>
+                        </div>
+                        <div className="p-2">
+                            {[
+                                { label: "Interactive API Docs", href: "http://localhost:4000/swagger" },
+                                { label: "API Keys", href: "/api-keys" },
+                                { label: "Playground", href: "/playground" },
+                            ].map(link => (
+                                <a
+                                    key={link.label}
+                                    href={link.href}
+                                    target={link.href.startsWith("http") ? "_blank" : undefined}
+                                    rel="noreferrer"
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-[13px] transition-colors no-underline"
+                                    style={{ color: "var(--foreground-2)" }}
+                                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.045)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--foreground-2)"; }}
+                                >
+                                    <span className="size-[5px] rounded-full flex-none" style={{ background: "var(--accent-blue)" }} />
+                                    {link.label}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: code panel */}
+                <div className="col-span-2 flex flex-col gap-3">
+                    {/* Install command */}
+                    <div className="rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <div className="flex items-center justify-between px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                            <h2 className="text-[14px] font-[600] m-0">Installation</h2>
+                        </div>
+                        <div className="px-[18px] py-[14px]">
+                            <div
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-[8px]"
+                                style={{ background: "var(--background)", border: "1px solid var(--border)" }}
+                            >
+                                <Terminal className="size-4 flex-none" style={{ color: "var(--foreground-3)" }} />
+                                <code className="flex-1 text-[13px]" style={{ fontFamily: "var(--font-mono)", color: "#7C96EE" }}>
+                                    {activeSdk.install}
+                                </code>
+                                <button
+                                    onClick={() => copyText(activeSdk.install, setCopiedInstall)}
+                                    className="size-7 flex items-center justify-center rounded-[6px] transition-colors"
+                                    style={{ color: "var(--foreground-3)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                >
+                                    {copiedInstall ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Right Column: Code & Installation */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Installation */}
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-medium text-muted-foreground">Installation</h3>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Terminal className="size-4 text-muted-foreground" />
-                                </div>
-                                <input
-                                    readOnly
-                                    value={activeSdk.install}
-                                    className="w-full bg-card/50 border border-border/50 rounded-xl py-3 pl-11 pr-12 text-sm font-mono text-primary outline-none focus:border-primary/30 transition-all"
-                                />
-                                <button
-                                    onClick={() => copyToClipboard(activeSdk.install)}
-                                    className="absolute right-2 top-1.5 p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
-                                >
-                                    {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
-                                </button>
-                            </div>
+                    {/* Code example */}
+                    <div className="rounded-[10px] overflow-hidden flex flex-col" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                        <div className="flex items-center justify-between px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                            <h2 className="text-[14px] font-[600] m-0">Quick start</h2>
+                            <button
+                                onClick={() => copyText(activeSdk.example, setCopiedCode)}
+                                className="flex items-center gap-1.5 text-[12px] transition-colors"
+                                style={{ color: "var(--foreground-3)" }}
+                                onMouseEnter={e => (e.currentTarget.style.color = "var(--foreground-2)")}
+                                onMouseLeave={e => (e.currentTarget.style.color = "var(--foreground-3)")}
+                            >
+                                {copiedCode ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                                {copiedCode ? "Copied!" : "Copy"}
+                            </button>
                         </div>
-
-                        {/* Quick Start Code */}
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-medium text-muted-foreground">Quick Start Example</h3>
-                                <button
-                                    onClick={() => copyToClipboard(activeSdk.example)}
-                                    className="text-xs flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
-                                >
-                                    <Copy className="size-3" />
-                                    Copy Code
-                                </button>
-                            </div>
-                            <div className="relative rounded-2xl overflow-hidden border border-border/50 bg-[#0d0d0d] p-6 shadow-2xl">
-                                <pre className="text-sm font-mono text-zinc-300 overflow-x-auto">
-                                    <code>{activeSdk.example}</code>
-                                </pre>
-                            </div>
+                        <div
+                            className="p-[18px] overflow-x-auto"
+                            style={{ background: "#0A0A0B" }}
+                        >
+                            <pre
+                                className="m-0 text-[12.5px] leading-[1.65]"
+                                style={{ fontFamily: "var(--font-mono)", color: "#A1A1AA" }}
+                            >
+                                <code>{activeSdk.example}</code>
+                            </pre>
                         </div>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -41,112 +42,231 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ============================================================
+   DESIGN TOKENS — PromptRouter Design System
+   ============================================================ */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.984 0.003 247.858);
-  --foreground: oklch(0.208 0.042 265.755);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.208 0.042 265.755);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.208 0.042 265.755);
-  --primary: oklch(0.585 0.233 277.117);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.92 0.02 260);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.92 0.02 260);
-  --muted-foreground: oklch(0.45 0.03 260);
-  --accent: oklch(0.92 0.02 260);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.85 0.02 260);
-  --input: oklch(0.85 0.02 260);
-  --ring: oklch(0.585 0.233 277.117);
-  --chart-1: oklch(0.585 0.233 277.117);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-primary: oklch(0.585 0.233 277.117);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.02 260);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.85 0.02 260);
-  --sidebar-ring: oklch(0.585 0.233 277.117);
+  --radius: 0.625rem; /* 10px */
+
+  /* Backgrounds */
+  --background:       #F8F9FA;
+  --surface:          #FFFFFF;
+  --surface-2:        #F1F3F5;
+
+  /* Foreground */
+  --foreground:       #1A1A1E;
+  --foreground-2:     #495057;
+  --foreground-3:     #868E96;
+
+  /* Borders */
+  --border:           rgba(0,0,0,0.08);
+  --border-2:         rgba(0,0,0,0.12);
+  --hover:            rgba(0,0,0,0.045);
+  --active:           rgba(0,0,0,0.07);
+
+  /* Accent (Blue) */
+  --accent-blue:      #3E63DD;
+  --accent-blue-hover:#2F52C9;
+  --accent-blue-text: #2B4EC2;
+  --accent-blue-soft: rgba(62,99,221,0.08);
+
+  /* Tailwind compat tokens */
+  --primary:          #3E63DD;
+  --primary-foreground: #ffffff;
+  --card:             #FFFFFF;
+  --card-foreground:  #1A1A1E;
+  --popover:          #F1F3F5;
+  --popover-foreground: #1A1A1E;
+  --secondary:        #F1F3F5;
+  --secondary-foreground: #495057;
+  --muted:            #F1F3F5;
+  --muted-foreground: #868E96;
+  --accent:           rgba(0,0,0,0.04);
+  --accent-foreground: #1A1A1E;
+  --destructive:      #c92a2a;
+  --input:            rgba(0,0,0,0.05);
+  --ring:             #3E63DD;
+
+  /* Success */
+  --success:          #2B8A3E;
+
+  /* Typography */
+  --font-sans:        'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:        'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Charts */
+  --chart-1:          #3E63DD;
+  --chart-2:          #3EB35F;
+  --chart-3:          #F5A623;
+  --chart-4:          #9B59B6;
+  --chart-5:          #E74C3C;
+
+  /* Sidebar */
+  --sidebar:          #FFFFFF;
+  --sidebar-foreground: #1A1A1E;
+  --sidebar-primary:  #3E63DD;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent:   rgba(0,0,0,0.04);
+  --sidebar-accent-foreground: #1A1A1E;
+  --sidebar-border:   rgba(0,0,0,0.08);
+  --sidebar-ring:     #3E63DD;
+  --hover:            rgba(255,255,255,0.045);
+  --active:           rgba(255,255,255,0.07);
 }
 
 .dark {
-  --background: oklch(0.1 0.03 265);
-  --foreground: oklch(0.98 0.01 265);
-  --card: oklch(0.18 0.04 265);
-  --card-foreground: oklch(0.98 0.01 265);
-  --popover: oklch(0.18 0.04 265);
-  --popover-foreground: oklch(0.98 0.01 265);
-  --primary: oklch(0.65 0.22 275);
-  --primary-foreground: oklch(0.99 0.01 265);
-  --secondary: oklch(0.25 0.05 265);
-  --secondary-foreground: oklch(0.98 0.01 265);
-  --muted: oklch(0.22 0.04 265);
-  --muted-foreground: oklch(0.7 0.03 265);
-  --accent: oklch(0.25 0.05 265);
-  --accent-foreground: oklch(0.98 0.01 265);
-  --destructive: oklch(0.55 0.25 25);
-  --border: oklch(0.3 0.06 265);
-  --input: oklch(0.3 0.06 265);
-  --ring: oklch(0.65 0.22 275);
-  --chart-1: oklch(0.65 0.22 275);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.15 0.04 265);
-  --sidebar-foreground: oklch(0.98 0.01 265);
-  --sidebar-primary: oklch(0.65 0.22 275);
-  --sidebar-primary-foreground: oklch(0.99 0.01 265);
-  --sidebar-accent: oklch(0.22 0.04 265);
-  --sidebar-accent-foreground: oklch(0.98 0.01 265);
-  --sidebar-border: oklch(0.25 0.05 265);
-  --sidebar-ring: oklch(0.65 0.22 275);
+  --background:       #0A0A0B;
+  --foreground:       #F2F2F4;
+  --card:             #111113;
+  --card-foreground:  #F2F2F4;
+  --popover:          #16161A;
+  --popover-foreground: #F2F2F4;
+  --primary:          #3E63DD;
+  --primary-foreground: #ffffff;
+  --secondary:        #16161A;
+  --secondary-foreground: #A1A1AA;
+  --muted:            #16161A;
+  --muted-foreground: #6E6E76;
+  --accent:           rgba(255,255,255,0.07);
+  --accent-foreground: #F2F2F4;
+  --destructive:      #e5484d;
+  --border:           rgba(255,255,255,0.08);
+  --input:            rgba(255,255,255,0.08);
+  --ring:             #3E63DD;
+  --chart-1:          #3E63DD;
+  --chart-2:          #3EB35F;
+  --chart-3:          #F5A623;
+  --chart-4:          #9B59B6;
+  --chart-5:          #E74C3C;
+  --sidebar:          #111113;
+  --sidebar-foreground: #F2F2F4;
+  --sidebar-primary:  #3E63DD;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent:   rgba(255,255,255,0.07);
+  --sidebar-accent-foreground: #F2F2F4;
+  --sidebar-border:   rgba(255,255,255,0.08);
+  --sidebar-ring:     #3E63DD;
+
+  /* Custom overrides for Dark Mode */
+  --surface:          #111113;
+  --surface-2:        #16161A;
+  --foreground-2:     #A1A1AA;
+  --foreground-3:     #6E6E76;
+  --border-2:         rgba(255,255,255,0.13);
+  --accent-blue-hover:#2F52C9;
+  --accent-blue-text: #7C96EE;
+  --accent-blue-soft: rgba(62,99,221,0.14);
+  --success:          #3EB35F;
+  --hover:            rgba(255,255,255,0.045);
+  --active:           rgba(255,255,255,0.07);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  *, *::before, *::after {
+    box-sizing: border-box;
+    @apply border-border;
+    transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
   }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
   body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
     @apply bg-background text-foreground;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+
+  ::selection {
+    background: var(--accent-blue-soft);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--foreground-3) !important;
+    opacity: 0.65 !important;
   }
 }
 
 @layer utilities {
+  /* Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 4px;
+    height: 4px;
   }
-
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
-
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-primary/20 rounded-full;
+    background: rgba(255,255,255,0.1);
+    border-radius: 100px;
   }
-
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary/40;
+    background: rgba(255,255,255,0.18);
   }
 
-  /* Custom Prose for Markdown */
+  /* Status dot */
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    flex: none;
+    display: inline-block;
+  }
+  .status-dot--muted {
+    background: var(--foreground-3);
+  }
+
+  /* Kbd badge */
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--foreground-3);
+    border: 1px solid var(--border-2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.5;
+  }
+
+  /* Subtle hover bg states */
+  .hover-bg:hover { background: var(--hover); }
+  .active-bg { background: var(--active); }
+
+  /* Markdown Prose */
   .prose {
     color: var(--foreground);
-    line-height: 1.6;
+    line-height: 1.65;
+    font-size: 14px;
   }
-  .prose p {
-    margin-bottom: 1em;
-  }
+  .prose p { margin-bottom: 1em; }
   .prose h1, .prose h2, .prose h3 {
-    font-weight: 800;
+    font-weight: 700;
     margin-top: 1.5em;
     margin-bottom: 0.5em;
     color: var(--foreground);
@@ -155,22 +275,44 @@
     margin-bottom: 1em;
     padding-left: 1.5em;
   }
-  .prose li {
-    margin-bottom: 0.5em;
-  }
+  .prose li { margin-bottom: 0.4em; }
   .prose code {
-    @apply font-mono text-emerald-400 bg-black/20 px-1 rounded;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #7C96EE;
+    background: rgba(62,99,221,0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
   }
   .prose pre {
-    @apply bg-black/40 p-4 rounded-xl border border-border/20 my-4 overflow-x-auto;
+    background: #0D0D0F;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
   }
   .prose pre code {
-    @apply bg-transparent p-0 text-emerald-400/90;
+    background: transparent;
+    padding: 0;
+    color: #A1A1AA;
   }
   .prose blockquote {
-    @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-4;
+    border-left: 3px solid var(--border-2);
+    padding-left: 16px;
+    color: var(--foreground-2);
+    margin: 12px 0;
   }
   .prose a {
-    @apply text-primary hover:underline font-bold;
+    color: var(--accent-blue-text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 }

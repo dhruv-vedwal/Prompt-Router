@@ -4,7 +4,8 @@ import { t } from "elysia";
 export const Messages = t.Array(t.Object({
     role: t.Enum({
       user: "user",
-      assistant: "assistant"
+      assistant: "assistant",
+      system: "system"
     }),
     content: t.String()
 }))

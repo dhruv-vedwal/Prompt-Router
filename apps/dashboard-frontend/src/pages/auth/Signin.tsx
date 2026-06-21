@@ -1,38 +1,19 @@
 import { useElysiaClient } from "@/providers/Eden";
 import { useMutation } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-    CardFooter,
-} from "@/components/ui/card";
-import { ArrowRight, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Zap } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 export function Signin() {
     const emailRef = useRef<HTMLInputElement>(null);
     const passwordRef = useRef<HTMLInputElement>(null);
+    const [showPassword, setShowPassword] = useState(false);
     const elysiaClient = useElysiaClient();
     const navigate = useNavigate();
 
     const mutation = useMutation({
-        mutationFn: async ({
-            email,
-            password,
-        }: {
-            email: string;
-            password: string;
-        }) => {
-            const response = await elysiaClient.auth["sign-in"].post({
-                email,
-                password,
-            });
+        mutationFn: async ({ email, password }: { email: string; password: string }) => {
+            const response = await elysiaClient.auth["sign-in"].post({ email, password });
             if (response.error) {
                 const errValue = response.error.value as { message?: string } | undefined;
                 throw new Error(errValue?.message || "Invalid credentials");
@@ -40,157 +21,171 @@ export function Signin() {
             return response.data;
         },
         onSuccess: () => {
-            setTimeout(() => navigate("/dashboard"), 1000);
+            setTimeout(() => navigate("/dashboard"), 600);
         },
     });
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        mutation.mutate({
+            email: emailRef.current?.value ?? "",
+            password: passwordRef.current?.value ?? "",
+        });
+    };
+
     return (
-        <div className="dark min-h-screen relative flex items-center justify-center bg-background overflow-hidden">
-            {/* Animated gradient orbs */}
+        <div
+            className="min-h-screen flex items-center justify-center"
+            style={{ background: "var(--background)" }}
+        >
+            {/* Subtle bg blob */}
             <div
-                className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[120px] animate-pulse"
+                className="pointer-events-none fixed"
                 style={{
-                    background:
-                        "radial-gradient(circle, oklch(0.6 0.2 264) 0%, transparent 70%)",
-                    top: "-10%",
-                    left: "-5%",
-                    animationDuration: "8s",
-                }}
-            />
-            <div
-                className="absolute w-[500px] h-[500px] rounded-full opacity-[0.05] blur-[100px] animate-pulse"
-                style={{
-                    background:
-                        "radial-gradient(circle, oklch(0.7 0.15 55) 0%, transparent 70%)",
-                    bottom: "-15%",
-                    right: "-10%",
-                    animationDuration: "12s",
-                    animationDelay: "2s",
+                    width: 480,
+                    height: 480,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(62,99,221,0.12) 0%, transparent 70%)",
+                    top: "-80px",
+                    left: "-100px",
+                    filter: "blur(40px)",
                 }}
             />
 
-            {/* Dot grid pattern */}
-            <div
-                className="absolute inset-0 opacity-[0.4]"
-                style={{
-                    backgroundImage:
-                        "radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.08) 1px, transparent 0)",
-                    backgroundSize: "32px 32px",
-                }}
-            />
-
-            {/* Content */}
-            <div className="relative z-10 w-full max-w-[420px] px-6">
-                {/* Brand */}
-                <div className="flex items-center justify-center gap-2.5 mb-10">
-                    <div className="flex items-center justify-center size-9 rounded-lg bg-primary/10 border border-primary/20">
-                        <Zap className="size-4 text-primary" />
-                    </div>
-                    <span className="text-lg font-semibold tracking-tight text-foreground">
-                        PromptRouter
+            <div className="w-full max-w-[380px] px-4">
+                {/* Logo */}
+                <div className="flex items-center gap-2 mb-8">
+                    <span
+                        className="w-[22px] h-[22px] flex items-center justify-center rounded-[6px] flex-none"
+                        style={{ background: "var(--accent-blue)" }}
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[13px] h-[13px]">
+                            <path d="M6 18v-6h9V6"/>
+                        </svg>
                     </span>
+                    <span className="text-[14px] font-[600]">PromptRouter</span>
                 </div>
 
-                <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
-                    <CardHeader className="text-center pb-2">
-                        <CardTitle className="text-xl tracking-tight">
-                            Welcome back
-                        </CardTitle>
-                        <CardDescription className="text-muted-foreground/80">
-                            Sign in to your PromptRouter account
-                        </CardDescription>
-                    </CardHeader>
+                {/* Card */}
+                <div
+                    className="rounded-[10px] overflow-hidden"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
+                    <div className="px-6 pt-6 pb-5" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <h1 className="text-[18px] font-[600] tracking-[-0.01em] m-0 mb-1">Sign in</h1>
+                        <p className="text-[13px] m-0" style={{ color: "var(--foreground-2)" }}>
+                            Welcome back. Enter your credentials to continue.
+                        </p>
+                    </div>
 
-                    <CardContent>
-                        <form
-                            className="space-y-4"
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                mutation.mutate({
-                                    email: emailRef.current!.value,
-                                    password: passwordRef.current!.value,
-                                });
-                            }}
-                        >
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-                                    <Input
-                                        id="email"
-                                        ref={emailRef}
-                                        type="email"
-                                        placeholder="you@example.com"
-                                        className="pl-10 h-10"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-                                    <Input
-                                        id="password"
-                                        ref={passwordRef}
-                                        type="password"
-                                        placeholder="Enter your password"
-                                        className="pl-10 h-10"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {mutation.isError && (
-                                <div className="flex items-start gap-2.5 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3.5 py-3">
-                                    <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                                    <span>
-                                        {mutation.error?.message ||
-                                            "Something went wrong. Please try again."}
-                                    </span>
-                                </div>
-                            )}
-
-                            {mutation.isSuccess && (
-                                <div className="flex items-start gap-2.5 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3.5 py-3">
-                                    <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-                                    <span>Signed in! Redirecting to dashboard...</span>
-                                </div>
-                            )}
-
-                            <Button
-                                type="submit"
-                                className="w-full h-10 mt-2"
-                                disabled={mutation.isPending || mutation.isSuccess}
+                    <form onSubmit={handleSubmit} className="px-6 pt-5 pb-6 space-y-4">
+                        {/* Error state */}
+                        {mutation.isError && (
+                            <div
+                                className="flex items-center gap-2 px-3 py-2.5 rounded-[8px] text-[12.5px]"
+                                style={{ background: "rgba(229,72,77,0.08)", border: "1px solid rgba(229,72,77,0.2)", color: "#e5484d" }}
                             >
-                                {mutation.isPending ? (
-                                    <>
-                                        <Loader2 className="size-4 animate-spin" />
-                                        Signing in...
-                                    </>
-                                ) : (
-                                    <>
-                                        Sign in
-                                        <ArrowRight className="size-4" />
-                                    </>
-                                )}
-                            </Button>
-                        </form>
-                    </CardContent>
+                                <AlertCircle className="size-4 flex-none" />
+                                {mutation.error?.message || "Sign in failed"}
+                            </div>
+                        )}
 
-                    <CardFooter className="justify-center">
-                        <p className="text-sm text-muted-foreground">
+                        {/* Success state */}
+                        {mutation.isSuccess && (
+                            <div
+                                className="flex items-center gap-2 px-3 py-2.5 rounded-[8px] text-[12.5px]"
+                                style={{ background: "rgba(62,179,95,0.08)", border: "1px solid rgba(62,179,95,0.2)", color: "#3EB35F" }}
+                            >
+                                <CheckCircle2 className="size-4 flex-none" />
+                                Signed in! Redirecting…
+                            </div>
+                        )}
+
+                        {/* Email */}
+                        <div className="space-y-1.5">
+                            <label className="text-[12.5px] font-[500]" style={{ color: "var(--foreground-2)" }}>
+                                Email address
+                            </label>
+                            <input
+                                ref={emailRef}
+                                type="email"
+                                required
+                                placeholder="you@example.com"
+                                autoComplete="email"
+                                className="w-full h-9 px-3 rounded-[6px] text-[13px] outline-none transition-all"
+                                style={{
+                                    background: "var(--background)",
+                                    border: "1px solid var(--border)",
+                                    color: "var(--foreground)",
+                                    fontFamily: "var(--font-sans)",
+                                }}
+                                onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                            />
+                        </div>
+
+                        {/* Password */}
+                        <div className="space-y-1.5">
+                            <label className="text-[12.5px] font-[500]" style={{ color: "var(--foreground-2)" }}>
+                                Password
+                            </label>
+                            <div className="relative">
+                                <input
+                                    ref={passwordRef}
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    placeholder="••••••••"
+                                    autoComplete="current-password"
+                                    className="w-full h-9 px-3 pr-10 rounded-[6px] text-[13px] outline-none transition-all"
+                                    style={{
+                                        background: "var(--background)",
+                                        border: "1px solid var(--border)",
+                                        color: "var(--foreground)",
+                                        fontFamily: "var(--font-sans)",
+                                    }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(v => !v)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                                    style={{ color: "var(--foreground-3)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = "var(--foreground-2)")}
+                                    onMouseLeave={e => (e.currentTarget.style.color = "var(--foreground-3)")}
+                                >
+                                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Submit */}
+                        <button
+                            type="submit"
+                            disabled={mutation.isPending || mutation.isSuccess}
+                            className="w-full h-9 rounded-[6px] text-[13px] font-[500] text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                            style={{ background: "var(--accent-blue)" }}
+                            onMouseEnter={e => { if (!mutation.isPending) e.currentTarget.style.background = "var(--accent-blue-hover)"; }}
+                            onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-blue)")}
+                        >
+                            {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
+                            {mutation.isPending ? "Signing in…" : "Sign in"}
+                        </button>
+
+                        <p className="text-center text-[12.5px]" style={{ color: "var(--foreground-3)" }}>
                             Don't have an account?{" "}
                             <Link
                                 to="/signup"
-                                className="text-foreground hover:underline underline-offset-4 font-medium transition-colors"
+                                className="transition-colors"
+                                style={{ color: "var(--accent-blue-text)" }}
+                                onMouseEnter={e => (e.currentTarget.style.textDecoration = "underline")}
+                                onMouseLeave={e => (e.currentTarget.style.textDecoration = "none")}
                             >
                                 Sign up
                             </Link>
                         </p>
-                    </CardFooter>
-                </Card>
+                    </form>
+                </div>
             </div>
         </div>
     );

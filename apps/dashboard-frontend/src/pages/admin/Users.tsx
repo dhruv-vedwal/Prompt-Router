@@ -1,36 +1,9 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { 
-    Users, 
-    Search, 
-    Coins, 
-    ChevronRight, 
-    History, 
-    MoreHorizontal, 
-    Mail, 
-    Shield, 
-    Check, 
-    AlertCircle,
-    Zap,
-    Clock,
-    UserPlus,
-    CreditCard,
-    ArrowUpRight,
-    Activity,
-    Wallet,
-    Key,
-    MessageSquare,
-    Filter,
-    ArrowUpDown,
-    ExternalLink
-} from "lucide-react";
+import { Users, Search, Coins, CreditCard, Zap, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
 import { useDebounce } from "@/hooks/use-debounce";
-import { cn } from "@/lib/utils";
 
 export function AdminUsers() {
     const [search, setSearch] = useState("");
@@ -63,7 +36,6 @@ export function AdminUsers() {
                 reason: topupReason
             });
             if (response.error) throw new Error("Topup failed");
-            
             setSelectedUser(null);
             setTopupAmount("");
             setTopupReason("");
@@ -75,224 +47,196 @@ export function AdminUsers() {
         }
     };
 
+    const users = usersQuery.data ?? [];
+
     return (
         <DashboardLayout>
-            <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-1000">
-                {/* Neural Header */}
-                <div className="relative overflow-hidden p-10 rounded-[3rem] bg-card/20 border border-white/5 backdrop-blur-3xl">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                        <Users className="size-64" />
-                    </div>
-                    <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-2">
-                                    <div className="size-1.5 rounded-full bg-primary animate-pulse" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Live Nexus Control</span>
-                                </div>
-                            </div>
-                            <h1 className="text-5xl font-black tracking-tighter text-foreground">User Terminal</h1>
-                            <p className="text-muted-foreground text-base max-w-lg font-medium leading-relaxed opacity-70">
-                                Real-time oversight of the PromptRouter network. Intercept balances, audit traffic, and manage user lifecycles from a unified interface.
+            {/* Topup modal */}
+            {selectedUser && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-6"
+                    style={{ background: "rgba(10,10,11,0.85)", backdropFilter: "blur(6px)" }}
+                >
+                    <div className="w-full max-w-md rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border-2)" }}>
+                        <div className="px-6 pt-6 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                            <h3 className="text-[14.5px] font-[600] m-0">Manual Recharge</h3>
+                            <p className="text-[12px] m-0 mt-0.5" style={{ color: "var(--foreground-3)" }}>
+                                Adjusting balance for <strong>{selectedUser.email}</strong>
                             </p>
                         </div>
-
-                        <div className="flex items-center gap-4 bg-background/40 p-2 rounded-[2rem] border border-white/5 shadow-2xl">
-                            <div className="relative group">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
-                                <Input 
-                                    placeholder="Search global directory..." 
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-12 w-80 bg-transparent border-0 focus-visible:ring-0 text-sm font-bold placeholder:text-muted-foreground/20"
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-[8px]" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                                    <p className="text-[11px] font-[600] uppercase tracking-[0.05em] m-0 mb-1" style={{ color: "var(--foreground-3)" }}>Current Balance</p>
+                                    <p className="text-[20px] font-[600] m-0 tabular-nums">${Number(selectedUser.balance).toFixed(2)}</p>
+                                </div>
+                                <div className="p-3 rounded-[8px]" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                                    <p className="text-[11px] font-[600] uppercase tracking-[0.05em] m-0 mb-1" style={{ color: "var(--foreground-3)" }}>Sessions</p>
+                                    <p className="text-[20px] font-[600] m-0 tabular-nums">{selectedUser._count.conversations}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-[500]" style={{ color: "var(--foreground-2)" }}>Amount (credits)</label>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={topupAmount}
+                                    onChange={e => setTopupAmount(e.target.value)}
+                                    className="w-full h-9 px-3 rounded-[6px] text-[13px] outline-none transition-all"
+                                    style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
                                 />
                             </div>
-                            <Button className="rounded-[1.5rem] h-12 px-6 font-black uppercase tracking-widest text-[10px] gap-2 shadow-xl shadow-primary/20">
-                                <Filter className="size-4" />
-                                Advanced Filters
-                            </Button>
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-[500]" style={{ color: "var(--foreground-2)" }}>Reason</label>
+                                <input
+                                    placeholder="Administrative justification"
+                                    value={topupReason}
+                                    onChange={e => setTopupReason(e.target.value)}
+                                    className="w-full h-9 px-3 rounded-[6px] text-[13px] outline-none transition-all"
+                                    style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="flex-1 h-9 rounded-[6px] text-[12.5px] font-[500] transition-colors"
+                                    style={{ border: "1px solid var(--border-2)", color: "var(--foreground-2)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.045)")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={!topupAmount || isProcessing}
+                                    onClick={handleTopup}
+                                    className="flex-[2] h-9 rounded-[6px] text-[12.5px] font-[500] text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                    style={{ background: "var(--accent-blue)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-blue-hover)")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-blue)")}
+                                >
+                                    {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+                                    Execute recharge
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+            )}
 
-                {/* Glass Command Grid */}
-                <div className="relative group">
-                    <div className="absolute inset-0 bg-primary/5 blur-[100px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-                    <div className="relative bg-card/30 border border-white/5 backdrop-blur-2xl rounded-[3rem] overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-white/5">
-                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">User Identity</th>
-                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 text-center">Status</th>
-                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Financial Exposure</th>
-                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 text-center">Network Load</th>
-                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {usersQuery.data?.map((user: any) => (
-                                    <tr key={user.id} className="group/row hover:bg-white/[0.02] transition-colors duration-300">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-5">
-                                                <div className="size-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center text-primary font-black text-xl uppercase shadow-lg group-hover/row:scale-110 transition-transform duration-500">
-                                                    {user.email[0]}
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <div className="font-black text-foreground group-hover/row:text-primary transition-colors">{user.email}</div>
-                                                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">
-                                                        <Fingerprint className="size-3" />
-                                                        NODE_{user.id.toString().padStart(6, '0')}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 text-center">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest text-emerald-500">
-                                                <Activity className="size-3 animate-pulse" />
-                                                Operational
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="space-y-2">
-                                                <div className="flex items-end gap-2">
-                                                    <span className="text-xl font-black tracking-tighter text-foreground">${Number(user.balance).toFixed(2)}</span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1">Available</span>
-                                                </div>
-                                                <div className="w-40 h-1.5 rounded-full bg-white/5 overflow-hidden border border-white/5">
-                                                    <div className="h-full bg-primary/40 rounded-full" style={{ width: '70%' }} />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center justify-center gap-6">
-                                                <div className="text-center space-y-1">
-                                                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Keys</div>
-                                                    <div className="font-black text-sm">{user._count.apiKeys}</div>
-                                                </div>
-                                                <div className="size-1 bg-white/10 rounded-full" />
-                                                <div className="text-center space-y-1">
-                                                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Calls</div>
-                                                    <div className="font-black text-sm">{user._count.conversations}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
-                                                <Button 
-                                                    onClick={() => setSelectedUser(user)}
-                                                    className="size-11 rounded-2xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-lg border border-primary/20"
-                                                >
-                                                    <Coins className="size-5" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="size-11 rounded-2xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all">
-                                                    <ExternalLink className="size-5 text-muted-foreground/40" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6 gap-4">
+                <div>
+                    <h1 className="text-[21px] font-[600] tracking-[-0.01em] m-0 mb-1">Manage Users</h1>
+                    <p className="m-0 text-[13px]" style={{ color: "var(--foreground-2)" }}>
+                        Real-time oversight of all PromptRouter users.
+                    </p>
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="rounded-[10px] overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div className="flex items-center justify-between gap-3 px-[18px] py-[14px]" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <h2 className="text-[14.5px] font-[600] m-0">All users</h2>
+                    <div className="flex items-center gap-[7px] h-[30px] px-[9px] rounded-[6px] w-[200px]" style={{ border: "1px solid var(--border)", background: "var(--background)" }}>
+                        <Search className="size-[13px] flex-none" style={{ color: "var(--foreground-3)" }} />
+                        <input
+                            placeholder="Search users…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="flex-1 bg-transparent border-0 outline-none text-[12px]"
+                            style={{ color: "var(--foreground)" }}
+                        />
                     </div>
                 </div>
 
-                {/* Neural Action Panel (Drawer Style) */}
-                {selectedUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-end p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-500">
-                        <Card className="w-full max-w-xl h-full border-white/10 bg-card/80 backdrop-blur-3xl shadow-[0_0_100px_-12px_rgba(var(--primary),0.2)] animate-in slide-in-from-right duration-700 overflow-hidden relative">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-                            <div className="p-12 h-full flex flex-col">
-                                <div className="space-y-8 flex-1">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-widest">Financial Override</div>
-                                        <h2 className="text-4xl font-black tracking-tighter text-foreground">Manual Recharge</h2>
-                                        <p className="text-muted-foreground font-medium opacity-60">Adjusting cryptographic balance for {selectedUser.email}</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-2">
-                                            <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Current Exposure</div>
-                                            <div className="text-2xl font-black text-foreground">${Number(selectedUser.balance).toFixed(2)}</div>
-                                        </div>
-                                        <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-2">
-                                            <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Load Metrics</div>
-                                            <div className="text-2xl font-black text-primary">{selectedUser._count.conversations} CALLS</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-6 pt-8 border-t border-white/5">
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 ml-1">Recharge Amount ($ USD)</label>
-                                            <div className="relative group">
-                                                <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                                                <Input 
-                                                    type="number"
-                                                    placeholder="0.00"
-                                                    value={topupAmount}
-                                                    onChange={(e) => setTopupAmount(e.target.value)}
-                                                    className="relative h-20 bg-white/5 border-white/10 rounded-2xl font-black text-4xl text-center focus-visible:ring-primary/20"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 ml-1">Protocol Reason</label>
-                                            <Input 
-                                                placeholder="Enter administrative justification..."
-                                                value={topupReason}
-                                                onChange={(e) => setTopupReason(e.target.value)}
-                                                className="h-14 bg-white/5 border-white/10 rounded-2xl font-medium"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 pt-10 border-t border-white/5">
-                                    <Button 
-                                        variant="ghost" 
-                                        className="flex-1 h-16 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-white/5"
-                                        onClick={() => setSelectedUser(null)}
-                                    >
-                                        Abort
-                                    </Button>
-                                    <Button 
-                                        disabled={!topupAmount || isProcessing}
-                                        className="flex-[2] h-16 rounded-[2rem] font-black uppercase tracking-widest text-xs gap-3 shadow-2xl shadow-primary/20"
-                                        onClick={handleTopup}
-                                    >
-                                        {isProcessing ? <Zap className="size-5 animate-spin" /> : <CreditCard className="size-5" />}
-                                        Execute Recharge
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
+                {usersQuery.isLoading ? (
+                    <div className="py-12 flex items-center justify-center gap-2" style={{ color: "var(--foreground-3)" }}>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span className="text-[13px]">Loading users…</span>
                     </div>
+                ) : (
+                    <table className="w-full" style={{ borderCollapse: "collapse" }}>
+                        <thead>
+                            <tr>
+                                {["User", "Balance", "API Keys", "Sessions", "Role", ""].map((col, i) => (
+                                    <th key={i} className={`px-[18px] py-[9px] text-[11.5px] font-[600] text-left ${i === 5 ? "w-[80px]" : ""}`} style={{ color: "var(--foreground-3)", borderBottom: "1px solid var(--border)" }}>{col}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {users.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-[18px] py-12 text-center text-[13px]" style={{ color: "var(--foreground-3)" }}>
+                                        <Users className="size-7 mx-auto mb-2 opacity-20" />
+                                        No users found
+                                    </td>
+                                </tr>
+                            ) : (
+                                users.map((user: any, idx: number) => (
+                                    <tr
+                                        key={user.id}
+                                        style={{ borderBottom: idx === users.length - 1 ? "none" : "1px solid var(--border)" }}
+                                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)")}
+                                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                                    >
+                                        <td className="px-[18px] py-[13px]">
+                                            <div className="flex items-center gap-2.5">
+                                                <div
+                                                    className="size-7 rounded-full flex items-center justify-center text-[11px] font-[700] flex-none uppercase"
+                                                    style={{ background: "rgba(62,99,221,0.1)", border: "1px solid rgba(62,99,221,0.2)", color: "#7C96EE" }}
+                                                >
+                                                    {user.email[0]}
+                                                </div>
+                                                <span className="text-[13px] font-[500]">{user.email}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-[18px] py-[13px] text-[13px] tabular-nums" style={{ color: "var(--foreground-2)" }}>
+                                            ${Number(user.balance).toFixed(2)}
+                                        </td>
+                                        <td className="px-[18px] py-[13px] text-[13px] tabular-nums" style={{ color: "var(--foreground-2)" }}>
+                                            {user._count.apiKeys}
+                                        </td>
+                                        <td className="px-[18px] py-[13px] text-[13px] tabular-nums" style={{ color: "var(--foreground-2)" }}>
+                                            {user._count.conversations}
+                                        </td>
+                                        <td className="px-[18px] py-[13px]">
+                                            <span
+                                                className="text-[11px] font-[500] px-2 py-0.5 rounded-[4px]"
+                                                style={{
+                                                    background: user.role === "ADMIN" ? "rgba(245,166,35,0.1)" : "rgba(62,179,95,0.1)",
+                                                    color: user.role === "ADMIN" ? "#F5A623" : "#3EB35F",
+                                                }}
+                                            >
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-[18px] py-[13px] text-right">
+                                            <button
+                                                onClick={() => setSelectedUser(user)}
+                                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-[5px] text-[12px] font-[500] transition-colors"
+                                                style={{ border: "1px solid var(--border)", color: "var(--foreground-2)" }}
+                                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--foreground-2)"; }}
+                                            >
+                                                <Coins className="size-3" />
+                                                Top up
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 )}
+
+                <div className="px-[18px] py-[10px] text-[12px]" style={{ color: "var(--foreground-3)" }}>
+                    {users.length} user{users.length !== 1 ? "s" : ""}
+                </div>
             </div>
         </DashboardLayout>
     );
-}
-
-function Fingerprint(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.02-.3 3" />
-      <path d="M14 13.12c0 2.38 0 4.38-.14 4.38-.13 0-.13-2-.13-4.38" />
-      <path d="M18 11c0-4.42-3.58-8-8-8a8.01 8.01 0 0 0-8 8" />
-      <path d="M2 11c0 8.84 7.16 16 16 16" />
-      <path d="M7 11c0-2.76 2.24-5 5-5s5 2.24 5 5" />
-      <path d="M11 11a1 1 0 0 0-1 1v2c0 1.02-.1 2.02-.3 3" />
-      <path d="M15 11c0 3.31-2.69 6-6 6" />
-    </svg>
-  )
 }

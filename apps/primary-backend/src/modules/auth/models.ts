@@ -40,6 +40,7 @@ export namespace AuthModel {
 
 
     export const profileResponseSchema = t.Object({
+        email: t.String(),
         balance: t.String(),
         role: t.String()
     })

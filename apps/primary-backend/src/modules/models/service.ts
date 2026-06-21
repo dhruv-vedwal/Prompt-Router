@@ -2,7 +2,7 @@ import { prisma } from "db";
 
 export class ModelsService {
     static async getModels() {
-        return await prisma.model.findMany({
+        const models = await prisma.model.findMany({
             include: {
                 company: true,
                 modelProviderMappings: {
@@ -15,7 +15,18 @@ export class ModelsService {
                 name: 'asc'
             }
         });
+
+        return models.map(model => ({
+            ...model,
+            modelProviderMappings: model.modelProviderMappings.map(mapping => ({
+                ...mapping,
+                inputPricePer1k: Number(mapping.inputPricePer1k),
+                outputPricePer1k: Number(mapping.outputPricePer1k),
+                markupMultiplier: Number(mapping.markupMultiplier)
+            }))
+        }));
     }
+
 
     static async getProviders() {
         return await prisma.provider.findMany();
@@ -45,7 +56,7 @@ export class ModelsService {
         });
     }
 
-    static async createProvider(data: { name: string, website: string, baseUrl: string }) {
+    static async createProvider(data: { name: string, website: string }) {
         return await prisma.provider.create({ data });
     }
 

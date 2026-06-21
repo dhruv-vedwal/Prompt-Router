@@ -67,6 +67,7 @@ model ModelProviderMapping {
   id               Int            @id @default(autoincrement())
   modelId          Int
   providerId       Int
+  enabled          Boolean        @default(true)
   inputPricePer1k  Decimal
   outputPricePer1k Decimal
   markupMultiplier Decimal        @default(1.2)

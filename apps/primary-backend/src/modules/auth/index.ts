@@ -1,4 +1,4 @@
-import { Cookie, Elysia } from "elysia";
+import { Cookie, Elysia, t } from "elysia";
 import { AuthModel } from "./models";
 import { AuthService } from "./service";
 import jwt from "@elysiajs/jwt";
@@ -87,5 +87,29 @@ export const app = new Elysia({ prefix: "auth" })
         response: {
             200: AuthModel.profileResponseSchema,
             400: AuthModel.profileResponseErrorSchema
+        }
+    })
+    .put("/profile", async ({ userId, body, status }) => {
+        try {
+            await AuthService.updatePassword(Number(userId), body.password);
+            return {
+                message: "Password updated successfully"
+            }
+        } catch (e) {
+            return status(400, {
+                message: "Failed to update profile"
+            })
+        }
+    }, {
+        body: t.Object({
+            password: t.String()
+        }),
+        response: {
+            200: t.Object({
+                message: t.String()
+            }),
+            400: t.Object({
+                message: t.String()
+            })
         }
     })

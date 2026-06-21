@@ -1,27 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-    Send, 
-    Bot, 
-    User, 
-    Trash2, 
-    Loader2, 
-    Sparkles, 
+import {
+    Send,
+    Bot,
+    User,
+    Trash2,
+    Loader2,
+    Sparkles,
     Settings2,
     MessageSquare,
-    Zap,
-    History,
     Plus,
-    Clock,
-    MoreVertical,
     Pencil,
     ChevronLeft,
     ChevronRight,
-    Terminal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +20,7 @@ import { useElysiaClient } from "@/providers/Eden";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
-    role: "user" | "assistant";
+    role: "user" | "assistant" | "system";
     content: string;
 }
 
@@ -42,12 +33,20 @@ export function Chat() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [newTitle, setNewTitle] = useState("");
-    
+
+    // Custom confirm dialog state
+    const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+
+    // Playground settings state
+    const [showSettings, setShowSettings] = useState(false);
+    const [systemPrompt, setSystemPrompt] = useState("");
+    const [temperature, setTemperature] = useState(0.7);
+    const [maxTokens, setMaxTokens] = useState(2048);
+
     const scrollRef = useRef<HTMLDivElement>(null);
     const elysiaClient = useElysiaClient();
     const queryClient = useQueryClient();
 
-    // Fetch available models
     const modelsQuery = useQuery({
         queryKey: ["playground-models"],
         queryFn: async () => {
@@ -57,7 +56,6 @@ export function Chat() {
         }
     });
 
-    // Fetch Chat History
     const historyQuery = useQuery({
         queryKey: ["chat-history"],
         queryFn: async () => {
@@ -67,7 +65,6 @@ export function Chat() {
         }
     });
 
-    // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -91,7 +88,7 @@ export function Chat() {
         try {
             const response = await elysiaClient.playground.history({ sessionId: sid }).get();
             if (response.error) throw new Error("Failed to load session");
-            setMessages(response.data.messages || []);
+            setMessages((response.data.messages as Message[]) || []);
             setSessionId(sid);
         } catch (error) {
             console.error(error);
@@ -156,6 +153,11 @@ export function Chat() {
             }
             const apiKey = keysResponse.data.apiKeys[0]!.apiKey;
 
+            // Prepend system prompt if configured
+            const apiMessages = systemPrompt.trim()
+                ? [{ role: "system" as const, content: systemPrompt }, ...newMessages]
+                : newMessages;
+
             const response = await fetch("http://localhost:4000/api/v1/chat/completions/stream", {
                 method: "POST",
                 headers: {
@@ -164,7 +166,7 @@ export function Chat() {
                 },
                 body: JSON.stringify({
                     model: selectedModel,
-                    messages: newMessages,
+                    messages: apiMessages,
                     sessionId: currentSessionId
                 })
             });
@@ -208,10 +210,9 @@ export function Chat() {
                     }
                 }
             }
-            
+
             // Auto-rename if it's the first exchange
-            const session = historyQuery.data?.find((s: any) => s.id === currentSessionId);
-            if (session && (session.title === "New Chat" || !session.title)) {
+            if (newMessages.length === 1) {
                 const firstUserMsg = newMessages[0]?.content ?? "";
                 const shortTitle = firstUserMsg.length > 30 ? firstUserMsg.substring(0, 27) + "..." : firstUserMsg;
                 await elysiaClient.playground.session({ sessionId: currentSessionId! }).put({ title: shortTitle });
@@ -236,281 +237,391 @@ export function Chat() {
 
     return (
         <DashboardLayout fullHeight>
-            <div className="flex h-full w-full bg-background overflow-hidden">
-                {/* Sidebar */}
-                <aside className={cn(
-                    "flex flex-col border-r border-border/50 bg-card/10 backdrop-blur-xl transition-all duration-300 ease-in-out",
-                    isSidebarOpen ? "w-72" : "w-0"
-                )}>
+            {/* Custom confirm deletion modal */}
+            {sessionToDelete !== null && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+                    style={{ background: "rgba(10,10,11,0.85)", backdropFilter: "blur(6px)" }}
+                >
+                    <div className="w-full max-w-sm rounded-[10px] overflow-hidden shadow-2xl" style={{ background: "var(--surface)", border: "1px solid var(--border-2)" }}>
+                        <div className="p-6 space-y-4">
+                            <h3 className="text-[14.5px] font-[600] m-0">Delete Session</h3>
+                            <p className="text-[12.5px] m-0 leading-relaxed" style={{ color: "var(--foreground-2)" }}>
+                                Are you sure you want to permanently delete this chat session? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-2 pt-2">
+                                <button
+                                    onClick={() => setSessionToDelete(null)}
+                                    className="flex-1 h-9 rounded-[6px] text-[12.5px] font-[500] transition-colors"
+                                    style={{ border: "1px solid var(--border-2)", color: "var(--foreground-2)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.045)")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        deleteSession(sessionToDelete);
+                                        setSessionToDelete(null);
+                                    }}
+                                    className="flex-1 h-9 rounded-[6px] text-[12.5px] font-[500] text-white transition-colors"
+                                    style={{ background: "var(--destructive)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "#cf3c41")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "var(--destructive)")}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex h-full w-full overflow-hidden" style={{ background: "var(--background)" }}>
+                {/* Sessions Sidebar */}
+                <aside
+                    className={cn(
+                        "flex flex-col transition-all duration-200 ease-in-out flex-none",
+                        isSidebarOpen ? "w-[220px]" : "w-0"
+                    )}
+                    style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", overflow: "hidden" }}
+                >
                     {isSidebarOpen && (
                         <>
-                            <div className="p-4">
-                                <Button 
+                            <div className="p-3 flex-none" style={{ borderBottom: "1px solid var(--border)" }}>
+                                <button
                                     onClick={startNewChat}
-                                    variant="outline"
-                                    className="w-full h-11 border-border/60 hover:bg-accent/50 text-foreground font-bold gap-2 rounded-xl transition-all"
+                                    className="w-full flex items-center gap-2 h-8 px-3 rounded-[6px] text-[12.5px] font-[500] transition-colors"
+                                    style={{ border: "1px solid var(--border-2)", color: "var(--foreground-2)" }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.045)")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                                 >
-                                    <Plus className="size-4" />
-                                    New Session
-                                </Button>
+                                    <Plus className="size-3.5" />
+                                    New session
+                                </button>
                             </div>
 
-                            <ScrollArea className="flex-1 px-3">
-                                <div className="space-y-4 py-2">
-                                    <div className="flex items-center gap-2 px-3">
-                                        <Clock className="size-3 text-muted-foreground/40" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Recent Activity</span>
-                                    </div>
-                                    
-                                    <div className="space-y-1">
-                                        {historyQuery.data?.map((session: any) => (
-                                            <div key={session.id} className="group relative">
-                                                {editingSessionId === session.id ? (
-                                                    <div className="p-1 px-2">
-                                                        <Input 
-                                                            autoFocus
-                                                            value={newTitle}
-                                                            onChange={(e) => setNewTitle(e.target.value)}
-                                                            onKeyDown={(e) => e.key === "Enter" && updateTitle(session.id)}
-                                                            onBlur={() => setEditingSessionId(null)}
-                                                            className="h-8 text-xs bg-background border-primary/40 rounded-lg"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => loadSession(session.id)}
-                                                        className={cn(
-                                                            "w-full text-left p-3 rounded-xl transition-all group flex items-center justify-between",
-                                                            sessionId === session.id
-                                                                ? "bg-primary/10 text-primary shadow-sm"
-                                                                : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
-                                                        )}
-                                                    >
-                                                        <span className="text-xs font-bold truncate pr-2">{session.title}</span>
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="size-6 text-muted-foreground/60 hover:text-foreground"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingSessionId(session.id);
-                                                                    setNewTitle(session.title);
-                                                                }}
-                                                            >
-                                                                <Pencil className="size-3" />
-                                                            </Button>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="size-6 text-muted-foreground/60 hover:text-destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    deleteSession(session.id);
-                                                                }}
-                                                            >
-                                                                <Trash2 className="size-3" />
-                                                            </Button>
-                                                        </div>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                <p className="text-[11px] font-[600] uppercase tracking-[0.05em] px-2 py-1 mb-1" style={{ color: "var(--foreground-3)" }}>
+                                    Recent
+                                </p>
+                                <div className="space-y-[1px]">
                                     {historyQuery.isLoading && (
-                                        <div className="flex justify-center py-10 opacity-30">
+                                        <div className="py-4 flex justify-center" style={{ color: "var(--foreground-3)" }}>
                                             <Loader2 className="size-4 animate-spin" />
                                         </div>
                                     )}
+                                    {historyQuery.data?.map((session: any) => (
+                                        <div key={session.id} className="group relative">
+                                            {editingSessionId === session.id ? (
+                                                <div className="p-1">
+                                                    <input
+                                                        autoFocus
+                                                        value={newTitle}
+                                                        onChange={(e) => setNewTitle(e.target.value)}
+                                                        onKeyDown={(e) => e.key === "Enter" && updateTitle(session.id)}
+                                                        onBlur={() => setEditingSessionId(null)}
+                                                        className="w-full h-7 px-2 rounded-[5px] text-[12px] outline-none"
+                                                        style={{ background: "var(--background)", border: "1px solid var(--accent-blue)", color: "var(--foreground)" }}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => loadSession(session.id)}
+                                                    className="w-full text-left px-2 py-[6.5px] rounded-[7px] text-[12.5px] font-[500] transition-all flex items-center justify-between gap-1"
+                                                    style={{
+                                                        background: sessionId === session.id ? "rgba(255,255,255,0.07)" : "transparent",
+                                                        color: sessionId === session.id ? "var(--foreground)" : "var(--foreground-2)",
+                                                    }}
+                                                    onMouseEnter={e => { if (sessionId !== session.id) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.045)"; }}
+                                                    onMouseLeave={e => { if (sessionId !== session.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                                                >
+                                                    <span className="truncate flex-1 pr-1">{session.title}</span>
+                                                    <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-none">
+                                                        <button
+                                                            className="size-5 flex items-center justify-center rounded-[4px] transition-colors"
+                                                            style={{ color: "var(--foreground-3)" }}
+                                                            onClick={e => { e.stopPropagation(); setEditingSessionId(session.id); setNewTitle(session.title); }}
+                                                            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+                                                            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                                        >
+                                                            <Pencil className="size-3" />
+                                                        </button>
+                                                        <button
+                                                            className="size-5 flex items-center justify-center rounded-[4px] transition-colors"
+                                                            style={{ color: "var(--foreground-3)" }}
+                                                            onClick={e => { e.stopPropagation(); setSessionToDelete(session.id); }}
+                                                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,72,77,0.1)"; (e.currentTarget as HTMLElement).style.color = "#e5484d"; }}
+                                                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--foreground-3)"; }}
+                                                        >
+                                                            <Trash2 className="size-3" />
+                                                        </button>
+                                                    </span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                            </ScrollArea>
+                            </div>
                         </>
                     )}
                 </aside>
 
-                {/* Sidebar Toggle */}
-                <div className="relative">
-                    <button 
+                {/* Sidebar toggle */}
+                <div className="relative flex-none" style={{ width: 0 }}>
+                    <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="absolute top-1/2 -translate-y-1/2 -left-3 z-10 size-6 rounded-full bg-background border border-border/50 shadow-lg flex items-center justify-center hover:bg-accent transition-colors"
+                        className="absolute top-1/2 -translate-y-1/2 left-0 z-10 size-5 rounded-full flex items-center justify-center transition-colors shadow-md"
+                        style={{ background: "var(--surface-2)", border: "1px solid var(--border-2)", color: "var(--foreground-3)" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--foreground)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "var(--foreground-3)")}
                     >
                         {isSidebarOpen ? <ChevronLeft className="size-3" /> : <ChevronRight className="size-3" />}
                     </button>
                 </div>
 
-                {/* Main Content Area */}
-                <main className="flex-1 flex flex-col relative overflow-hidden bg-background">
-                    {/* Model Header */}
-                    <header className="h-14 border-b border-border/50 flex items-center justify-between px-6 bg-background/50 backdrop-blur-md z-20">
+                {/* Main */}
+                <main className="flex-1 flex flex-col overflow-hidden" style={{ background: "var(--background)" }}>
+                    {/* Top bar */}
+                    <header
+                        className="h-12 flex items-center justify-between px-5 flex-none"
+                        style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}
+                    >
                         <div className="flex items-center gap-3">
-                            <div className="size-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-                                <Sparkles className="size-4 text-primary" />
+                            <div
+                                className="size-7 rounded-[7px] flex items-center justify-center flex-none"
+                                style={{ background: "rgba(62,99,221,0.14)", border: "1px solid rgba(62,99,221,0.2)" }}
+                            >
+                                <Sparkles className="size-4" style={{ color: "#7C96EE" }} />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold tracking-tight">AI Playground</span>
-                                <span className="text-muted-foreground/30">•</span>
-                                <select 
-                                    value={selectedModel}
-                                    onChange={(e) => setSelectedModel(e.target.value)}
-                                    className="bg-transparent text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors outline-none cursor-pointer"
-                                >
-                                    {modelsQuery.data?.models.map((m: any) => (
-                                        <option key={m.id} value={`${m.company.name.toLowerCase()}/${m.name}`}>
-                                            {m.company.name} / {m.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <span className="text-[13.5px] font-[600]">Playground</span>
+                            <span style={{ color: "var(--foreground-3)" }}>•</span>
+                            <select
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                className="bg-transparent outline-none cursor-pointer text-[12.5px] font-[500]"
+                                style={{ color: "var(--foreground-2)", fontFamily: "var(--font-sans)" }}
+                            >
+                                {modelsQuery.data?.models.map((m: any) => (
+                                    <option key={m.id} value={m.slug} style={{ background: "var(--surface)" }}>
+                                        {m.company.name} / {m.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-
-                        <div className="flex items-center gap-3">
-                            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
-                                <Settings2 className="size-4" />
-                            </Button>
-                        </div>
+                        <button
+                            onClick={() => setShowSettings(!showSettings)}
+                            className="size-7 flex items-center justify-center rounded-[6px] transition-colors"
+                            style={{
+                                background: showSettings ? "rgba(255,255,255,0.07)" : "transparent",
+                                color: showSettings ? "var(--foreground)" : "var(--foreground-3)"
+                            }}
+                            onMouseEnter={e => { if (!showSettings) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)"; }}
+                            onMouseLeave={e => { if (!showSettings) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        >
+                            <Settings2 className="size-4" />
+                        </button>
                     </header>
 
-                    {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto scroll-smooth">
-                        <div className="max-w-3xl mx-auto py-10 px-6 space-y-10">
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div className="max-w-[720px] mx-auto py-10 px-6 space-y-8">
                             {messages.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-40 space-y-8 animate-in fade-in zoom-in-95 duration-700">
-                                    <div className="size-20 rounded-[2.5rem] bg-primary/5 border border-primary/10 flex items-center justify-center shadow-inner relative overflow-hidden group">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <MessageSquare className="size-10 text-primary/40 relative z-10" />
+                                <div className="flex flex-col items-center justify-center py-32 space-y-6">
+                                    <div
+                                        className="size-16 rounded-[16px] flex items-center justify-center"
+                                        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                                    >
+                                        <MessageSquare className="size-7" style={{ color: "var(--foreground-3)" }} />
                                     </div>
-                                    <div className="text-center space-y-2">
-                                        <h2 className="text-3xl font-black tracking-tighter text-foreground">What can I help you build?</h2>
-                                        <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed opacity-60">
-                                            Select a high-performance model and start your session. 
-                                            Real-time streaming and persistent history enabled.
+                                    <div className="text-center space-y-1">
+                                        <h2 className="text-[20px] font-[600] tracking-[-0.01em]">What can I help you build?</h2>
+                                        <p className="text-[13px]" style={{ color: "var(--foreground-2)" }}>
+                                            Select a model above and start your session.
                                         </p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+                                    <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
                                         {['Explain Quantum Physics', 'Write a React Hook', 'Analyze Market Trends', 'Optimize SQL Query'].map(prompt => (
-                                            <Button 
-                                                key={prompt} 
-                                                variant="outline" 
-                                                className="text-[10px] uppercase font-black tracking-widest h-10 border-border/50 hover:bg-accent/40 rounded-xl"
-                                                onClick={() => {
-                                                    setInput(prompt);
-                                                }}
+                                            <button
+                                                key={prompt}
+                                                className="h-9 px-3 rounded-[8px] text-[12px] font-[500] transition-colors text-left"
+                                                style={{ border: "1px solid var(--border)", color: "var(--foreground-2)", background: "var(--surface)" }}
+                                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-2)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground-2)"; }}
+                                                onClick={() => setInput(prompt)}
                                             >
                                                 {prompt}
-                                            </Button>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
                                 messages.map((msg, i) => (
-                                    <div key={i} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className={cn(
-                                            "flex gap-6 max-w-full group",
-                                            msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                                        )}>
-                                            <div className={cn(
-                                                "size-9 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500",
-                                                msg.role === "user" 
-                                                    ? "bg-primary text-primary-foreground border-primary shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)]" 
-                                                    : "bg-card border-border/50 shadow-sm"
-                                            )}>
-                                                {msg.role === "user" ? <User className="size-5" /> : <Bot className="size-5" />}
-                                            </div>
-                                            <div className={cn(
-                                                "flex flex-col gap-2 flex-1",
-                                                msg.role === "user" ? "items-end" : "items-start"
-                                            )}>
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1">
-                                                    {msg.role === "user" ? "Protocol User" : "Neural Agent"}
-                                                </div>
-                                                <div className={cn(
-                                                    "text-sm leading-relaxed prose prose-invert prose-sm max-w-none w-full",
-                                                    msg.role === "user" 
-                                                        ? "text-right font-medium text-foreground/90 px-4 py-2 bg-primary/5 rounded-2xl rounded-tr-none" 
-                                                        : "text-foreground"
-                                                )}>
-                                                    {msg.role === "assistant" ? (
-                                                        <div className="bg-card/30 p-4 rounded-2xl border border-border/30 backdrop-blur-sm">
-                                                            <ReactMarkdown components={{
-                                                                code({ node, className, children, ...props }: any) {
-                                                                    return (
-                                                                        <div className="relative group">
-                                                                            <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                                <Terminal className="size-3 text-muted-foreground/50" />
-                                                                            </div>
-                                                                            <code className={cn("bg-black/40 rounded px-1.5 py-0.5 font-mono text-emerald-400/90", className)} {...props}>
-                                                                                {children}
-                                                                            </code>
-                                                                        </div>
-                                                                    )
-                                                                }
-                                                            }}>
-                                                                {msg.content}
-                                                            </ReactMarkdown>
-                                                            {!msg.content && (
-                                                                <div className="flex gap-2 py-2">
-                                                                    <div className="size-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:-0.3s]" />
-                                                                    <div className="size-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:-0.15s]" />
-                                                                    <div className="size-1.5 rounded-full bg-primary/40 animate-bounce" />
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                    <div key={i} className={cn("flex gap-4", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+                                        <div
+                                            className="size-8 rounded-[8px] flex items-center justify-center flex-none"
+                                            style={{
+                                                background: msg.role === "user" ? "var(--accent-blue)" : "var(--surface)",
+                                                border: `1px solid ${msg.role === "user" ? "var(--accent-blue)" : "var(--border)"}`,
+                                            }}
+                                        >
+                                            {msg.role === "user" ? (
+                                                <User className="size-4 text-white" />
+                                            ) : (
+                                                <Bot className="size-4" style={{ color: "var(--foreground-3)" }} />
+                                            )}
+                                        </div>
+                                        <div className={cn("flex flex-col gap-1 flex-1 max-w-[85%]", msg.role === "user" ? "items-end" : "items-start")}>
+                                            <span className="text-[11px] font-[600] uppercase tracking-[0.05em]" style={{ color: "var(--foreground-3)" }}>
+                                                {msg.role === "user" ? "You" : "Assistant"}
+                                            </span>
+                                            {msg.role === "assistant" ? (
+                                                <div
+                                                    className="prose w-full"
+                                                    style={{
+                                                        background: "var(--surface)",
+                                                        border: "1px solid var(--border)",
+                                                        borderRadius: "10px",
+                                                        padding: "12px 16px",
+                                                    }}
+                                                >
+                                                    {msg.content ? (
+                                                        <ReactMarkdown components={{
+                                                            code({ className, children, ...props }: any) {
+                                                                return (
+                                                                    <code className={cn("text-[#7C96EE]", className)} style={{ fontFamily: "var(--font-mono)" }} {...props}>
+                                                                        {children}
+                                                                    </code>
+                                                                );
+                                                            }
+                                                        }}>
+                                                            {msg.content}
+                                                        </ReactMarkdown>
                                                     ) : (
-                                                        msg.content
+                                                        <div className="flex gap-1.5 py-1">
+                                                            <div className="size-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: "var(--accent-blue)" }} />
+                                                            <div className="size-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: "var(--accent-blue)" }} />
+                                                            <div className="size-1.5 rounded-full animate-bounce" style={{ background: "var(--accent-blue)" }} />
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div
+                                                    className="text-[13.5px] leading-[1.6] px-4 py-2.5 rounded-[10px]"
+                                                    style={{ background: "rgba(62,99,221,0.1)", border: "1px solid rgba(62,99,221,0.2)", color: "var(--foreground)" }}
+                                                >
+                                                    {msg.content}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))
                             )}
-                            <div ref={scrollRef} className="h-20" />
+                            <div ref={scrollRef} className="h-4" />
                         </div>
                     </div>
 
-                    {/* Input Bar */}
-                    <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none z-30">
-                        <div className="max-w-3xl mx-auto pointer-events-auto relative">
-                            <div className="relative group/input shadow-2xl rounded-[1.5rem] overflow-hidden border border-border/50 bg-card/50 backdrop-blur-xl">
-                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-focus-within/input:opacity-100 transition-opacity" />
-                                <Input
-                                    placeholder="Message PromptRouter..."
+                    {/* Input bar */}
+                    <div
+                        className="flex-none p-5"
+                        style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}
+                    >
+                        <div className="max-w-[720px] mx-auto flex items-end gap-3">
+                            <div
+                                className="flex-1 flex items-center rounded-[10px] overflow-hidden"
+                                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                            >
+                                <textarea
+                                    rows={1}
+                                    placeholder="Message PromptRouter…"
                                     value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                                     disabled={isLoading}
-                                    className="pr-16 pl-6 h-16 bg-transparent border-0 focus-visible:ring-0 text-sm font-medium"
+                                    className="flex-1 bg-transparent border-0 outline-none resize-none px-4 py-3 text-[13.5px] leading-[1.5]"
+                                    style={{
+                                        color: "var(--foreground)",
+                                        fontFamily: "var(--font-sans)",
+                                        maxHeight: "160px",
+                                        overflowY: "auto",
+                                    }}
                                 />
-                                <Button
-                                    size="icon"
-                                    onClick={handleSend}
-                                    disabled={isLoading || !input.trim()}
-                                    className={cn(
-                                        "absolute right-3 top-1/2 -translate-y-1/2 size-10 rounded-xl transition-all duration-500",
-                                        input.trim() ? "bg-primary hover:bg-primary/90 scale-100 shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground scale-90"
-                                    )}
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="size-4 animate-spin" />
-                                    ) : (
-                                        <Send className="size-4" />
-                                    )}
-                                </Button>
                             </div>
-                            <div className="mt-3 flex items-center justify-center gap-6 px-2">
-                                <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] font-black text-muted-foreground/30">
-                                    <Zap className="size-3 text-primary/60" />
-                                    Stream Protocol Active
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] font-black text-muted-foreground/30">
-                                    <Terminal className="size-3" />
-                                    Encrypted Context
-                                </div>
-                            </div>
+                            <button
+                                onClick={handleSend}
+                                disabled={isLoading || !input.trim()}
+                                className="size-10 rounded-[8px] flex items-center justify-center flex-none text-white transition-all disabled:opacity-40"
+                                style={{ background: "var(--accent-blue)" }}
+                                onMouseEnter={e => { if (!isLoading && input.trim()) (e.currentTarget as HTMLElement).style.background = "var(--accent-blue-hover)"; }}
+                                onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-blue)")}
+                            >
+                                {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                            </button>
                         </div>
+                        <p className="text-center text-[11px] mt-2" style={{ color: "var(--foreground-3)" }}>
+                            Enter to send · Shift+Enter for new line
+                        </p>
                     </div>
                 </main>
+
+                {/* Settings Sidebar */}
+                <aside
+                    className={cn(
+                        "flex flex-col transition-all duration-200 ease-in-out flex-none",
+                        showSettings ? "w-[240px]" : "w-0"
+                    )}
+                    style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", overflow: "hidden" }}
+                >
+                    {showSettings && (
+                        <div className="p-4 space-y-4 flex flex-col h-full overflow-y-auto custom-scrollbar">
+                            <h3 className="text-[14px] font-[600] m-0">Playground Settings</h3>
+                            
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-[500]" style={{ color: "var(--foreground-2)" }}>System Prompt</label>
+                                <textarea
+                                    placeholder="You are a helpful AI assistant..."
+                                    value={systemPrompt}
+                                    onChange={e => setSystemPrompt(e.target.value)}
+                                    rows={5}
+                                    className="w-full p-2.5 rounded-[6px] text-[13px] outline-none transition-all resize-none"
+                                    style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", minHeight: "100px" }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[12px] font-[500]">
+                                    <span style={{ color: "var(--foreground-2)" }}>Temperature</span>
+                                    <span className="font-mono text-[11.5px]">{temperature}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="2"
+                                    step="0.1"
+                                    value={temperature}
+                                    onChange={e => setTemperature(parseFloat(e.target.value))}
+                                    className="w-full accent-[var(--accent-blue)]"
+                                    style={{ cursor: "pointer" }}
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-[500]" style={{ color: "var(--foreground-2)" }}>Max Tokens</label>
+                                <input
+                                    type="number"
+                                    value={maxTokens}
+                                    onChange={e => setMaxTokens(parseInt(e.target.value) || 0)}
+                                    className="w-full h-8 px-2 rounded-[6px] text-[13px] outline-none transition-all font-mono"
+                                    style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "var(--accent-blue)")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </aside>
             </div>
         </DashboardLayout>
     );
