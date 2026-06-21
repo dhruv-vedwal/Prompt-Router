@@ -60,7 +60,10 @@ export function Landing() {
     const modelCount = modelsQuery.data?.models?.length ?? 200;
 
     return (
-        <div className="dark min-h-screen bg-background text-foreground">
+        <div 
+            className="dark h-screen w-screen overflow-y-auto bg-background text-foreground scroll-smooth"
+            style={{ scrollSnapType: "y mandatory" }}
+        >
             {/* Navigation */}
             <header className="fixed top-0 inset-x-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -87,7 +90,10 @@ export function Landing() {
             </header>
 
             {/* Hero */}
-            <section className="relative pt-32 pb-24 overflow-hidden">
+            <section 
+                className="relative flex flex-col justify-center items-center min-h-screen h-screen pt-20 pb-10 overflow-hidden"
+                style={{ scrollSnapAlign: "start" }}
+            >
                 {/* Background effects */}
                 <div
                     className="absolute w-[800px] h-[800px] rounded-full opacity-[0.06] blur-[150px]"
@@ -107,12 +113,12 @@ export function Landing() {
                 />
 
                 <div className="relative max-w-6xl mx-auto px-6 text-center">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/60 bg-card/50 backdrop-blur-sm text-xs font-medium text-muted-foreground mb-8">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/60 bg-card/50 backdrop-blur-sm text-xs font-medium text-muted-foreground mb-6">
                         <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         {modelCount}+ models available
                     </div>
 
-                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] max-w-4xl mx-auto">
+                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] max-w-4xl mx-auto">
                         One API for{" "}
                         <span
                             className="bg-clip-text text-transparent"
@@ -124,33 +130,33 @@ export function Landing() {
                         </span>
                     </h1>
 
-                    <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                    <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                         Route to the best models from OpenAI, Anthropic, Google, Meta, and more.
                         One integration, infinite possibilities.
                     </p>
 
-                    <div className="flex items-center justify-center gap-4 mt-10">
-                        <Button size="lg" asChild className="h-12 px-8 text-base">
+                    <div className="flex items-center justify-center gap-4 mt-8">
+                        <Button size="lg" asChild className="h-11 px-6 text-sm">
                             <Link to="/signup">
                                 Start building
                                 <ArrowRight className="size-4" />
                             </Link>
                         </Button>
-                        <Button variant="outline" size="lg" asChild className="h-12 px-8 text-base">
+                        <Button variant="outline" size="lg" asChild className="h-11 px-6 text-sm">
                             <Link to="/dashboard">View dashboard</Link>
                         </Button>
                     </div>
 
                     {/* Code snippet */}
-                    <div className="mt-16 max-w-2xl mx-auto">
+                    <div className="mt-10 max-w-2xl mx-auto">
                         <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm overflow-hidden shadow-2xl text-left">
-                            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
-                                <span className="size-3 rounded-full bg-red-500/60" />
-                                <span className="size-3 rounded-full bg-yellow-500/60" />
-                                <span className="size-3 rounded-full bg-green-500/60" />
+                            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/50">
+                                <span className="size-2.5 rounded-full bg-red-500/60" />
+                                <span className="size-2.5 rounded-full bg-yellow-500/60" />
+                                <span className="size-2.5 rounded-full bg-green-500/60" />
                                 <span className="ml-2 text-xs text-muted-foreground font-mono">request.ts</span>
                             </div>
-                            <pre className="p-5 text-sm font-mono leading-relaxed overflow-x-auto">
+                            <pre className="p-4 text-xs font-mono leading-relaxed overflow-x-auto">
                                 <code>
                                     <span className="text-muted-foreground">{"// Just change the base URL — that's it\n"}</span>
                                     <span className="text-blue-400">{"const "}</span>
@@ -181,13 +187,16 @@ export function Landing() {
             </section>
 
             {/* Features */}
-            <section className="py-24 border-t border-border/30">
+            <section 
+                className="relative flex flex-col justify-center items-center min-h-screen h-screen border-t border-border/30 overflow-hidden"
+                style={{ scrollSnapAlign: "start" }}
+            >
                 <div className="max-w-6xl mx-auto px-6">
-                    <div className="text-center mb-16">
+                    <div className="text-center mb-10">
                         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                             Everything you need to ship AI
                         </h2>
-                        <p className="mt-4 text-muted-foreground text-lg max-w-xl mx-auto">
+                        <p className="mt-4 text-muted-foreground text-base max-w-xl mx-auto">
                             Built for developers who want to move fast without being locked into a single provider.
                         </p>
                     </div>
@@ -213,13 +222,16 @@ export function Landing() {
 
             {/* Models preview */}
             {modelsQuery.data?.models && modelsQuery.data.models.length > 0 && (
-                <section className="py-24 border-t border-border/30">
+                <section 
+                    className="relative flex flex-col justify-center items-center min-h-screen h-screen border-t border-border/30 overflow-hidden"
+                    style={{ scrollSnapAlign: "start" }}
+                >
                     <div className="max-w-6xl mx-auto px-6">
-                        <div className="text-center mb-12">
+                        <div className="text-center mb-10">
                             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                                 Popular models
                             </h2>
-                            <p className="mt-4 text-muted-foreground text-lg">
+                            <p className="mt-4 text-muted-foreground text-base">
                                 Access the latest and greatest from every major provider.
                             </p>
                         </div>
@@ -244,9 +256,12 @@ export function Landing() {
                 </section>
             )}
 
-            {/* CTA */}
-            <section className="py-24 border-t border-border/30">
-                <div className="max-w-6xl mx-auto px-6 text-center">
+            {/* CTA & Footer */}
+            <section 
+                className="relative flex flex-col justify-between min-h-screen h-screen border-t border-border/30 overflow-hidden pt-24"
+                style={{ scrollSnapAlign: "start" }}
+            >
+                <div className="flex-1 flex flex-col justify-center items-center max-w-6xl mx-auto px-6 text-center">
                     <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                         Ready to start building?
                     </h2>
@@ -260,20 +275,20 @@ export function Landing() {
                         </Link>
                     </Button>
                 </div>
-            </section>
 
-            {/* Footer */}
-            <footer className="border-t border-border/30 py-8">
-                <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Zap className="size-3.5 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">PromptRouter</span>
+                {/* Footer */}
+                <footer className="border-t border-border/30 py-8 w-full">
+                    <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Zap className="size-3.5 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">PromptRouter</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            &copy; 2026 PromptRouter. All rights reserved.
+                        </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        &copy; 2026 PromptRouter. All rights reserved.
-                    </p>
-                </div>
-            </footer>
+                </footer>
+            </section>
         </div>
     );
 }
