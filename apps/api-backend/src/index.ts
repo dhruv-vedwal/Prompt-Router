@@ -26,7 +26,8 @@ const app = new Elysia()
   }
 }))
 .use(cors({
-  origin: true 
+  origin: true,
+  credentials: true,
 }))
 .use(bearer())
 .post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {

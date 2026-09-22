@@ -158,7 +158,10 @@ export function Chat() {
                 ? [{ role: "system" as const, content: systemPrompt }, ...newMessages]
                 : newMessages;
 
-            const response = await fetch("http://localhost:4000/api/v1/chat/completions/stream", {
+            const routerApiUrl =
+                (typeof process !== "undefined" ? process.env.ROUTER_API_URL : undefined) ||
+                "http://localhost:4000";
+            const response = await fetch(`${routerApiUrl}/api/v1/chat/completions/stream`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

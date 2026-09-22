@@ -2,6 +2,10 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Terminal, Copy, Check, Code2, BookOpen } from "lucide-react";
 
+const ROUTER_API_URL =
+    (typeof process !== "undefined" ? process.env.ROUTER_API_URL : undefined) ||
+    "http://localhost:4000";
+
 const sdkData = [
     {
         id: "python",
@@ -23,7 +27,7 @@ request = PostApiV1ChatCompletionsRequest(
 
 response = client.post_api_v1_chat_completions(request)
 print(response.content)`,
-        docs: "http://localhost:4000/swagger",
+        docs: `${ROUTER_API_URL}/swagger`,
     },
     {
         id: "typescript",
@@ -44,7 +48,7 @@ async function chat() {
     });
     console.log(response.content);
 }`,
-        docs: "http://localhost:4000/swagger",
+        docs: `${ROUTER_API_URL}/swagger`,
     },
 ];
 
@@ -124,7 +128,7 @@ export function Sdks() {
                         </div>
                         <div className="p-2">
                             {[
-                                { label: "Interactive API Docs", href: "http://localhost:4000/swagger" },
+                                { label: "Interactive API Docs", href: `${ROUTER_API_URL}/swagger` },
                                 { label: "API Keys", href: "/api-keys" },
                                 { label: "Playground", href: "/playground" },
                             ].map(link => (

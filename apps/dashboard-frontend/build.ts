@@ -132,6 +132,7 @@ const result = await Bun.build({
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
     "process.env.API_URL": JSON.stringify(process.env.API_URL || "http://localhost:3000"),
+    "process.env.ROUTER_API_URL": JSON.stringify(process.env.ROUTER_API_URL || "http://localhost:4000"),
   },
   ...cliConfig,
 });
