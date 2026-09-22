@@ -1,3 +1,5 @@
 [serve.static]
 plugins = ["bun-plugin-tailwind"]
-env = "BUN_PUBLIC_*"
+# Inline client-safe env vars into the browser bundle (dev HTML imports).
+# Frontend .env should only contain public URLs — never secrets.
+env = "inline"

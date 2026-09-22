@@ -1,12 +1,13 @@
 import { treaty } from '@elysiajs/eden'
 import type { App } from 'app'
 import { createContext, useContext } from 'react';
+import { API_URL } from '@/config';
 
-const client = treaty<App>('localhost:3000', {
+const client = treaty<App>(API_URL, {
     fetch: {
         credentials: 'include'
     }
-}) ;
+});
 
 const ElysiaClientContext = createContext(client);
 

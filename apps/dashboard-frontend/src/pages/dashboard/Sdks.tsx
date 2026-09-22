@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Terminal, Copy, Check, Code2, BookOpen } from "lucide-react";
-
-const ROUTER_API_URL =
-    (typeof process !== "undefined" ? process.env.ROUTER_API_URL : undefined) ||
-    "http://localhost:4000";
+import { ROUTER_API_URL } from "@/config";
 
 const sdkData = [
     {

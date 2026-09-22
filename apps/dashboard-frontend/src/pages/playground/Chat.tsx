@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
 import ReactMarkdown from "react-markdown";
+import { ROUTER_API_URL } from "@/config";
 
 interface Message {
     role: "user" | "assistant" | "system";
@@ -158,10 +159,7 @@ export function Chat() {
                 ? [{ role: "system" as const, content: systemPrompt }, ...newMessages]
                 : newMessages;
 
-            const routerApiUrl =
-                (typeof process !== "undefined" ? process.env.ROUTER_API_URL : undefined) ||
-                "http://localhost:4000";
-            const response = await fetch(`${routerApiUrl}/api/v1/chat/completions/stream`, {
+            const response = await fetch(`${ROUTER_API_URL}/api/v1/chat/completions/stream`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

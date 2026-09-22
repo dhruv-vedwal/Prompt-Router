@@ -2,6 +2,11 @@
 FROM oven/bun:latest as build
 WORKDIR /usr/src/app
 
+ARG API_URL=http://localhost:3000
+ARG ROUTER_API_URL=http://localhost:4000
+ENV API_URL=$API_URL
+ENV ROUTER_API_URL=$ROUTER_API_URL
+
 COPY . .
 RUN bun install
 

@@ -110,6 +110,11 @@ console.log("\n🚀 Starting build process...\n");
 const cliConfig = parseArgs();
 const outdir = cliConfig.outdir || path.join(process.cwd(), "dist");
 
+const apiUrl = process.env.API_URL || "http://localhost:3000";
+const routerApiUrl = process.env.ROUTER_API_URL || "http://localhost:4000";
+console.log(`🔗 API_URL=${apiUrl}`);
+console.log(`🔗 ROUTER_API_URL=${routerApiUrl}\n`);
+
 if (existsSync(outdir)) {
   console.log(`🗑️ Cleaning previous build at ${outdir}`);
   await rm(outdir, { recursive: true, force: true });
@@ -129,10 +134,11 @@ const result = await Bun.build({
   minify: true,
   target: "browser",
   sourcemap: "linked",
+  env: "inline",
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
-    "process.env.API_URL": JSON.stringify(process.env.API_URL || "http://localhost:3000"),
-    "process.env.ROUTER_API_URL": JSON.stringify(process.env.ROUTER_API_URL || "http://localhost:4000"),
+    "process.env.API_URL": JSON.stringify(apiUrl),
+    "process.env.ROUTER_API_URL": JSON.stringify(routerApiUrl),
   },
   ...cliConfig,
 });

@@ -21,8 +21,8 @@ import { PlatformStats } from "./pages/admin/Stats";
 import { AdminUsers } from "./pages/admin/Users";
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { API_URL } from "./config";
 
-const API_URL = (typeof process !== "undefined" ? process.env.API_URL : undefined) || "http://localhost:3000";
 const client = treaty<App>(API_URL, {
   fetch: {
     credentials: 'include'
