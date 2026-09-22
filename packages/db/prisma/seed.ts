@@ -20,7 +20,7 @@ async function main() {
 
   // 2. Seed Users
   console.log("👤 Creating seed users...");
-  
+
   const adminPasswordHash = await Bun.password.hash("admin123");
   const devPasswordHash = await Bun.password.hash("dev123");
 
@@ -28,7 +28,7 @@ async function main() {
     data: {
       email: "admin@promptrouter.com",
       password: adminPasswordHash,
-      balance: 5000.00,
+      balance: 5000.0,
       role: "ADMIN",
     },
   });
@@ -37,12 +37,14 @@ async function main() {
     data: {
       email: "dev@promptrouter.com",
       password: devPasswordHash,
-      balance: 100.00,
+      balance: 100.0,
       role: "USER",
     },
   });
 
-  console.log(`✅ Users created:\n   - Admin: ${adminUser.email} (pass: admin123)\n   - Dev: ${devUser.email} (pass: dev123)`);
+  console.log(
+    `✅ Users created:\n   - Admin: ${adminUser.email} (pass: admin123)\n   - Dev: ${devUser.email} (pass: dev123)`,
+  );
 
   // 3. Seed Companies
   console.log("🏢 Seeding parent companies...");
@@ -68,72 +70,92 @@ async function main() {
     data: { name: "Claude API", website: "https://anthropic.com" },
   });
 
-  // 5. Seed Models
+  // 5. Seed Models (current production API catalog)
   console.log("🤖 Seeding model catalog...");
-  const gpt4o = await prisma.model.create({
-    data: {
+
+  const catalog = [
+    {
       name: "GPT-4o",
       slug: "openai/gpt-4o",
       companyId: openaiCompany.id,
-    },
-  });
-
-  const gemini3Flash = await prisma.model.create({
-    data: {
-      name: "Gemini 3 Flash",
-      slug: "google/gemini-3-flash",
-      companyId: googleCompany.id,
-    },
-  });
-
-  const claudeSonnet = await prisma.model.create({
-    data: {
-      name: "Claude 3.5 Sonnet",
-      slug: "anthropic/claude-3-5-sonnet",
-      companyId: anthropicCompany.id,
-    },
-  });
-
-  // 6. Seed Mappings
-  console.log("🔗 Seeding model-provider mappings & prices...");
-  
-  // GPT-4o mapping
-  await prisma.modelProviderMapping.create({
-    data: {
-      modelId: gpt4o.id,
       providerId: openaiProvider.id,
-      inputPricePer1k: 0.005,
-      outputPricePer1k: 0.015,
-      markupMultiplier: 1.2,
-      enabled: true,
+      inputPricePer1k: 0.0025,
+      outputPricePer1k: 0.01,
     },
-  });
-
-  // Gemini 3 Flash mapping
-  await prisma.modelProviderMapping.create({
-    data: {
-      modelId: gemini3Flash.id,
+    {
+      name: "GPT-4o mini",
+      slug: "openai/gpt-4o-mini",
+      companyId: openaiCompany.id,
+      providerId: openaiProvider.id,
+      inputPricePer1k: 0.00015,
+      outputPricePer1k: 0.0006,
+    },
+    {
+      name: "GPT-4.1",
+      slug: "openai/gpt-4.1",
+      companyId: openaiCompany.id,
+      providerId: openaiProvider.id,
+      inputPricePer1k: 0.002,
+      outputPricePer1k: 0.008,
+    },
+    {
+      name: "Gemini 2.5 Flash",
+      slug: "google/gemini-2.5-flash",
+      companyId: googleCompany.id,
       providerId: googleProvider.id,
-      inputPricePer1k: 0.000375, // Usually highly competitive for Flash models
-      outputPricePer1k: 0.00115,
-      markupMultiplier: 1.2,
-      enabled: true,
+      inputPricePer1k: 0.0003,
+      outputPricePer1k: 0.0025,
     },
-  });
-
-  // Claude 3.5 Sonnet mapping
-  await prisma.modelProviderMapping.create({
-    data: {
-      modelId: claudeSonnet.id,
+    {
+      name: "Gemini 2.5 Pro",
+      slug: "google/gemini-2.5-pro",
+      companyId: googleCompany.id,
+      providerId: googleProvider.id,
+      inputPricePer1k: 0.00125,
+      outputPricePer1k: 0.01,
+    },
+    {
+      name: "Claude Sonnet 4.5",
+      slug: "anthropic/claude-sonnet-4-5",
+      companyId: anthropicCompany.id,
       providerId: anthropicProvider.id,
       inputPricePer1k: 0.003,
       outputPricePer1k: 0.015,
-      markupMultiplier: 1.2,
-      enabled: true,
     },
-  });
+    {
+      name: "Claude Haiku 4.5",
+      slug: "anthropic/claude-haiku-4-5",
+      companyId: anthropicCompany.id,
+      providerId: anthropicProvider.id,
+      inputPricePer1k: 0.001,
+      outputPricePer1k: 0.005,
+    },
+  ] as const;
 
-  // 7. Seed default API key for the regular dev user
+  for (const entry of catalog) {
+    const model = await prisma.model.create({
+      data: {
+        name: entry.name,
+        slug: entry.slug,
+        companyId: entry.companyId,
+      },
+    });
+
+    await prisma.modelProviderMapping.create({
+      data: {
+        modelId: model.id,
+        providerId: entry.providerId,
+        inputPricePer1k: entry.inputPricePer1k,
+        outputPricePer1k: entry.outputPricePer1k,
+        markupMultiplier: 1.2,
+        enabled: true,
+      },
+    });
+  }
+
+  console.log(`✅ Seeded ${catalog.length} models with provider mappings.`);
+
+  // 6. Seed default API key for the regular dev user
   console.log("🔐 Creating default active API Key...");
   const rawKey = "pr-developmentkey1234567890";
   const hashedKey = crypto.createHash("sha256").update(rawKey).digest("hex");
@@ -148,7 +170,9 @@ async function main() {
     },
   });
 
-  console.log(`🚀 Default API Key created!\n   - Key: ${rawKey}\n   - Hashed representation successfully stored.`);
+  console.log(
+    `🚀 Default API Key created!\n   - Key: ${rawKey}\n   - Hashed representation successfully stored.`,
+  );
 
   console.log("✨ Seeding completed successfully! Network is ready to deploy.");
 }

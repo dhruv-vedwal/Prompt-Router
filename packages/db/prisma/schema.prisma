@@ -34,7 +34,7 @@ model ApiKey {
   updatedAt       DateTime       @updatedAt
   lastUsed        DateTime?
   creditsConsumed Decimal        @default(0)
-  user            User           @relation(fields: [userId], references: [id])
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversations   Conversation[]
 }
 
@@ -50,7 +50,7 @@ model Model {
   name                  String
   slug                  String                 @unique
   companyId             Int
-  company               Company                @relation(fields: [companyId], references: [id])
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   modelProviderMappings ModelProviderMapping[]
 
   @@index([slug])
@@ -71,8 +71,8 @@ model ModelProviderMapping {
   inputPricePer1k  Decimal
   outputPricePer1k Decimal
   markupMultiplier Decimal        @default(1.2)
-  model            Model          @relation(fields: [modelId], references: [id])
-  provider         Provider       @relation(fields: [providerId], references: [id])
+  model            Model          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  provider         Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
   conversations    Conversation[]
 
   @@index([modelId])
@@ -83,7 +83,7 @@ model OnrampTransaction {
   userId Int
   amount Int
   status String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ChatSession {
@@ -92,7 +92,7 @@ model ChatSession {
   title     String        @default("New Chat")
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  user      User          @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
 
   @@index([userId, updatedAt])
@@ -125,9 +125,9 @@ model Conversation {
   status                 String?
   sessionId              String?
   createdAt              DateTime             @default(now())
-  user                   User                 @relation(fields: [userId], references: [id])
-  apiKey                 ApiKey               @relation(fields: [apiKeyId], references: [id])
-  modelProviderMapping   ModelProviderMapping @relation(fields: [modelProviderMappingId], references: [id])
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey                 ApiKey               @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  modelProviderMapping   ModelProviderMapping @relation(fields: [modelProviderMappingId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([status])
@@ -142,7 +142,7 @@ model Transaction {
   amount    Decimal
   metadata  Json?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }

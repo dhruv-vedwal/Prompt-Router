@@ -79,7 +79,13 @@ export const app = new Elysia({ prefix: "models" })
     })
     .delete("/:id", async ({ params: { id }, role, status }) => {
         if (role !== "ADMIN") return status(403, { message: "Forbidden" });
-        return await ModelsService.deleteModel(Number(id));
+        try {
+            await ModelsService.deleteModel(Number(id));
+            return { message: "Model deleted" };
+        } catch (e) {
+            console.error("deleteModel failed:", e);
+            return status(400, { message: "Failed to delete model" });
+        }
     })
     .post("/providers", async ({ body, role, status }) => {
         if (role !== "ADMIN") return status(403, { message: "Forbidden" });
@@ -89,7 +95,23 @@ export const app = new Elysia({ prefix: "models" })
     })
     .delete("/providers/:id", async ({ params: { id }, role, status }) => {
         if (role !== "ADMIN") return status(403, { message: "Forbidden" });
-        return await ModelsService.deleteProvider(Number(id));
+        try {
+            await ModelsService.deleteProvider(Number(id));
+            return { message: "Provider deleted" };
+        } catch (e) {
+            console.error("deleteProvider failed:", e);
+            return status(400, { message: "Failed to delete provider" });
+        }
+    })
+    .delete("/companies/:id", async ({ params: { id }, role, status }) => {
+        if (role !== "ADMIN") return status(403, { message: "Forbidden" });
+        try {
+            await ModelsService.deleteCompany(Number(id));
+            return { message: "Company deleted" };
+        } catch (e) {
+            console.error("deleteCompany failed:", e);
+            return status(400, { message: "Failed to delete company" });
+        }
     })
     .post("/mapping", async ({ body, role, status }) => {
         if (role !== "ADMIN") return status(403, { message: "Forbidden" });

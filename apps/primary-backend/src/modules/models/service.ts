@@ -50,9 +50,25 @@ export class ModelsService {
         });
     }
 
+    /** Deletes a model and all dependent mappings + conversations. */
     static async deleteModel(id: number) {
-        return await prisma.model.delete({
-            where: { id }
+        return await prisma.$transaction(async (tx) => {
+            const mappings = await tx.modelProviderMapping.findMany({
+                where: { modelId: id },
+                select: { id: true },
+            });
+            const mappingIds = mappings.map((m) => m.id);
+
+            if (mappingIds.length > 0) {
+                await tx.conversation.deleteMany({
+                    where: { modelProviderMappingId: { in: mappingIds } },
+                });
+                await tx.modelProviderMapping.deleteMany({
+                    where: { modelId: id },
+                });
+            }
+
+            return await tx.model.delete({ where: { id } });
         });
     }
 
@@ -60,9 +76,57 @@ export class ModelsService {
         return await prisma.provider.create({ data });
     }
 
+    /** Deletes a provider and all dependent mappings + conversations. */
     static async deleteProvider(id: number) {
-        return await prisma.provider.delete({
-            where: { id }
+        return await prisma.$transaction(async (tx) => {
+            const mappings = await tx.modelProviderMapping.findMany({
+                where: { providerId: id },
+                select: { id: true },
+            });
+            const mappingIds = mappings.map((m) => m.id);
+
+            if (mappingIds.length > 0) {
+                await tx.conversation.deleteMany({
+                    where: { modelProviderMappingId: { in: mappingIds } },
+                });
+                await tx.modelProviderMapping.deleteMany({
+                    where: { providerId: id },
+                });
+            }
+
+            return await tx.provider.delete({ where: { id } });
+        });
+    }
+
+    /** Deletes a company and cascades through its models → mappings → conversations. */
+    static async deleteCompany(id: number) {
+        return await prisma.$transaction(async (tx) => {
+            const models = await tx.model.findMany({
+                where: { companyId: id },
+                select: { id: true },
+            });
+            const modelIds = models.map((m) => m.id);
+
+            if (modelIds.length > 0) {
+                const mappings = await tx.modelProviderMapping.findMany({
+                    where: { modelId: { in: modelIds } },
+                    select: { id: true },
+                });
+                const mappingIds = mappings.map((m) => m.id);
+
+                if (mappingIds.length > 0) {
+                    await tx.conversation.deleteMany({
+                        where: { modelProviderMappingId: { in: mappingIds } },
+                    });
+                    await tx.modelProviderMapping.deleteMany({
+                        where: { id: { in: mappingIds } },
+                    });
+                }
+
+                await tx.model.deleteMany({ where: { companyId: id } });
+            }
+
+            return await tx.company.delete({ where: { id } });
         });
     }
 
