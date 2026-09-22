@@ -8,9 +8,9 @@ COPY . .
 # Install dependencies
 RUN bun install
 
-# Generate Prisma client for the DB package
+# Generate Prisma client for the DB package (pin Prisma 7 — bunx prisma alone may fetch Prisma 8, which has no `generate`)
 WORKDIR /usr/src/app/packages/db
-RUN bunx prisma generate
+RUN bun run generate
 
 # Go to the backend app
 WORKDIR /usr/src/app/apps/primary-backend

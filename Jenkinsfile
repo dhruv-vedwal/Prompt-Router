@@ -18,7 +18,7 @@ pipeline {
             steps {
                 echo 'Generating Prisma Client...'
                 dir('packages/db') {
-                    bat 'bunx prisma generate'
+                    bat 'bun run generate'
                 }
             }
         }
