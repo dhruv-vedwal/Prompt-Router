@@ -38,10 +38,16 @@ export const app = new Elysia({ prefix: "auth" })
                 auth = new Cookie("auth", {});
             }
 
+            // Cross-site (Vercel frontend → Render API) requires SameSite=None + Secure.
+            const crossSite = process.env.COOKIE_SAME_SITE === "none"
+                || process.env.NODE_ENV === "production";
             auth.set({
                 value: token,
                 httpOnly: true,
                 maxAge: 7 * 86400,
+                path: "/",
+                secure: crossSite,
+                sameSite: crossSite ? "none" : "lax",
             })
 
             return {
