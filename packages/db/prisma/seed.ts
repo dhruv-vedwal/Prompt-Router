@@ -70,7 +70,8 @@ async function main() {
     data: { name: "Claude API", website: "https://anthropic.com" },
   });
 
-  // 5. Seed Models (current production API catalog)
+  // 5. Seed Models — Gemini: free-tier only (Pro has no free API tier).
+  // See https://ai.google.dev/gemini-api/docs/pricing
   console.log("🤖 Seeding model catalog...");
 
   const catalog = [
@@ -99,20 +100,20 @@ async function main() {
       outputPricePer1k: 0.008,
     },
     {
-      name: "Gemini 2.5 Flash",
-      slug: "google/gemini-2.5-flash",
+      name: "Gemini 3.8 Flash",
+      slug: "google/gemini-3.8-flash",
       companyId: googleCompany.id,
       providerId: googleProvider.id,
-      inputPricePer1k: 0.0003,
-      outputPricePer1k: 0.0025,
+      inputPricePer1k: 0.0005,
+      outputPricePer1k: 0.003,
     },
     {
-      name: "Gemini 2.5 Pro",
-      slug: "google/gemini-2.5-pro",
+      name: "Gemini 3.5 Flash-Lite",
+      slug: "google/gemini-3.5-flash-lite",
       companyId: googleCompany.id,
       providerId: googleProvider.id,
-      inputPricePer1k: 0.00125,
-      outputPricePer1k: 0.01,
+      inputPricePer1k: 0.0001,
+      outputPricePer1k: 0.0004,
     },
     {
       name: "Claude Sonnet 4.5",

@@ -18,7 +18,7 @@ client.api_client.configuration.api_key['Authorization'] = 'YOUR_API_KEY'
 
 # Chat with a model
 request = PostApiV1ChatCompletionsRequest(
-    model="google/gemini-2.5-flash",
+    model="google/gemini-3.8-flash",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 
@@ -40,7 +40,7 @@ const api = new DefaultApi(config);
 
 async function chat() {
     const response = await api.postApiV1ChatCompletions({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3.8-flash',
         messages: [{ role: 'user', content: 'Hello!' }]
     });
     console.log(response.content);
