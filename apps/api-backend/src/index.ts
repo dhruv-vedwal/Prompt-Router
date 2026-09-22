@@ -11,58 +11,95 @@ import logger from "./lib/logger";
 import { BillingService } from "./lib/BillingService";
 import { RoutingService } from "./lib/RoutingService";
 import { RateLimiter } from "./lib/RateLimiter";
-import { SecurityService } from "./lib/SecurityService";
 import { swagger } from '@elysiajs/swagger';
+import { corsOrigins, listenPort } from "./lib/env";
+import { resolveApiKey, resolveInternalUser, type ResolvedApiKey } from "./lib/resolveApiKey";
 
-const app = new Elysia()
-.use(swagger({
-  path: '/swagger',
-  documentation: {
-    info: {
-      title: 'PromptRouter API',
-      version: '1.0.0',
-      description: 'Unified AI Model Gateway API'
+function providerChat(providerName: string, modelName: string, messages: any) {
+  if (providerName === "Google API") {
+    return Gemini.chat(modelName, messages);
+  }
+  if (providerName === "OpenAI") {
+    return OpenAi.chat(modelName, messages);
+  }
+  if (providerName === "Claude API") {
+    return Claude.chat(modelName, messages);
+  }
+  throw new Error("Provider not implemented");
+}
+
+function providerStream(providerName: string, modelName: string, messages: any) {
+  if (providerName === "Google API") {
+    return Gemini.stream(modelName, messages);
+  }
+  if (providerName === "OpenAI") {
+    return OpenAi.stream(modelName, messages);
+  }
+  if (providerName === "Claude API") {
+    return Claude.stream(modelName, messages);
+  }
+  return null;
+}
+
+async function authenticateRequest(
+  bearerToken: string | undefined,
+  headers: Headers,
+): Promise<ResolvedApiKey | null> {
+  const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
+  const internalUserHeader = headers.get("x-internal-user-id");
+  const providedSecret = headers.get("x-internal-secret");
+
+  if (
+    internalSecret &&
+    providedSecret &&
+    providedSecret === internalSecret &&
+    internalUserHeader
+  ) {
+    const userId = Number(internalUserHeader);
+    if (Number.isFinite(userId)) {
+      return resolveInternalUser(userId);
     }
   }
-}))
+
+  if (!bearerToken) return null;
+  return resolveApiKey(bearerToken);
+}
+
+let appBuilder = new Elysia();
+
+if (process.env.NODE_ENV !== "production") {
+  appBuilder = appBuilder.use(swagger({
+    path: '/swagger',
+    documentation: {
+      info: {
+        title: 'PromptRouter API',
+        version: '1.0.0',
+        description: 'Unified AI Model Gateway API'
+      }
+    }
+  }));
+}
+
+const app = appBuilder
 .use(cors({
-  origin: true,
+  origin: corsOrigins(),
   credentials: true,
 }))
 .use(bearer())
-.post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {
+.post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body, request }) => {
   const startTime = performance.now();
   const model = body.model;
-  
-  if (!apiKey) return status(401, { message: "No API key provided" });
 
-  // 1. Fetch ALL active keys (we have to verify hashes locally for safety)
-  // In a high-scale production, we would use a more efficient lookup (like a key-id prefix)
-  const allKeys = await prisma.apiKey.findMany({
-    where: { disabled: false, deleted: false },
-    select: { user: true, id: true, apiKey: true, rpmLimit: true, tpmLimit: true }
-  });
-
-  const apiKeyDb = allKeys.find(k => SecurityService.verifyKey(apiKey, k.apiKey));
+  const apiKeyDb = await authenticateRequest(apiKey, request.headers);
   if (!apiKeyDb) return status(403, { message: "Invalid api key" });
 
-  // 2. Migration: If key is plain text, hash it now
-  if (apiKey === apiKeyDb.apiKey) {
-    await prisma.apiKey.update({
-      where: { id: apiKeyDb.id },
-      data: { apiKey: SecurityService.hashKey(apiKey) }
-    });
-    logger.info(`Key ${apiKeyDb.id} automatically migrated to secure hash.`);
-  }
-
-  // 3. Rate Limit Check
   const inputText = body.messages.map((m: any) => m.content).join(" ");
   const estimatedInputTokens = BillingService.estimateTokens(inputText);
-  
+
   const rateLimit = RateLimiter.check(
-    apiKeyDb.id, 
-    apiKeyDb.rpmLimit, 
-    apiKeyDb.tpmLimit, 
+    apiKeyDb.id,
+    apiKeyDb.rpmLimit,
+    apiKeyDb.tpmLimit,
     estimatedInputTokens
   );
 
@@ -76,15 +113,14 @@ const app = new Elysia()
   const provider = await RoutingService.selectProvider(modelDb.id);
   if (!provider) return status(403, { message: "No provider found" });
 
-  // 4. Reserve Credits
   let reservation: any;
+  let billingDone = false;
   try {
     reservation = await BillingService.reserve(apiKeyDb.user.id, estimatedInputTokens, provider);
   } catch (e: any) {
     return status(402, { message: e.message || "Insufficient balance" });
   }
 
-  // 5. Create Conversation (Pending)
   const conversation = await prisma.conversation.create({
     data: {
       userId: apiKeyDb.user.id,
@@ -100,33 +136,29 @@ const app = new Elysia()
   });
 
   try {
-    let response: LlmResponse;
     const [_companyName, providerModelName] = model.split("/");
+    const response: LlmResponse = await providerChat(
+      provider.provider.name,
+      providerModelName!,
+      body.messages,
+    );
 
-    if (provider.provider.name === "Google API" || provider.provider.name === "Google Vertex") {
-      response = await Gemini.chat(providerModelName, body.messages);
-    } else if (provider.provider.name === "OpenAI") {
-      response = await OpenAi.chat(providerModelName, body.messages);
-    } else if (provider.provider.name === "Claude API") {
-      response = await Claude.chat(providerModelName, body.messages);
-    } else {
-      throw new Error("Provider not implemented");
-    }
+    const inputTokens = response.inputTokensConsumed ?? estimatedInputTokens;
+    const outputTokens = response.outputTokensConsumed ?? 0;
 
-    // 6. Settle Credits
     await BillingService.settle(
       apiKeyDb.user.id,
       reservation.id,
-      response.inputTokensConsumed,
-      response.outputTokensConsumed,
+      inputTokens,
+      outputTokens,
       provider,
       conversation.id
     );
+    billingDone = true;
 
-    // 7. Update API Key usage
     const actualCharge = BillingService.calculateCharge(
-      response.inputTokensConsumed,
-      response.outputTokensConsumed,
+      inputTokens,
+      outputTokens,
       provider.inputPricePer1k,
       provider.outputPricePer1k,
       provider.markupMultiplier
@@ -137,39 +169,21 @@ const app = new Elysia()
       data: { creditsConsumed: { increment: actualCharge } }
     });
 
-    // 8. Update conversation with output and duration
     await prisma.conversation.update({
       where: { id: conversation.id },
-      data: { 
+      data: {
         output: JSON.stringify(response),
         durationMs: Math.round(performance.now() - startTime)
       }
     });
 
-    // 9. Record to ChatMessage
-    if (body.sessionId) {
-      const lastUserMessage = body.messages[body.messages.length - 1];
-      await prisma.chatMessage.create({
-        data: {
-          sessionId: body.sessionId,
-          role: "user",
-          content: lastUserMessage.content
-        }
-      });
-      await prisma.chatMessage.create({
-        data: {
-          sessionId: body.sessionId,
-          role: "assistant",
-          content: response.completions.choices[0].message.content
-        }
-      });
-    }
-
     return response;
 
   } catch (error: any) {
     logger.error(`Request failed: ${error.message}`);
-    await BillingService.refund(apiKeyDb.user.id, reservation.id);
+    if (!billingDone) {
+      await BillingService.refund(apiKeyDb.user.id, reservation.id);
+    }
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { status: "FAILED" }
@@ -179,35 +193,20 @@ const app = new Elysia()
 }, {
   body: Conversation
 })
-.post("/api/v1/chat/completions/stream", async ({ status, bearer: apiKey, body, set }) => {
+.post("/api/v1/chat/completions/stream", async ({ status, bearer: apiKey, body, set, request }) => {
   const startTime = performance.now();
   const model = body.model;
-  
-  if (!apiKey) return status(401, { message: "No API key provided" });
 
-  const allKeys = await prisma.apiKey.findMany({
-    where: { disabled: false, deleted: false },
-    select: { user: true, id: true, apiKey: true, rpmLimit: true, tpmLimit: true }
-  });
-
-  const apiKeyDb = allKeys.find(k => SecurityService.verifyKey(apiKey, k.apiKey));
+  const apiKeyDb = await authenticateRequest(apiKey, request.headers);
   if (!apiKeyDb) return status(403, { message: "Invalid api key" });
 
-  if (apiKey === apiKeyDb.apiKey) {
-    await prisma.apiKey.update({
-      where: { id: apiKeyDb.id },
-      data: { apiKey: SecurityService.hashKey(apiKey) }
-    });
-  }
-
-  // 1. Rate Limit Check
   const inputText = body.messages.map((m: any) => m.content).join(" ");
   const estimatedInputTokens = BillingService.estimateTokens(inputText);
-  
+
   const rateLimit = RateLimiter.check(
-    apiKeyDb.id, 
-    apiKeyDb.rpmLimit, 
-    apiKeyDb.tpmLimit, 
+    apiKeyDb.id,
+    apiKeyDb.rpmLimit,
+    apiKeyDb.tpmLimit,
     estimatedInputTokens
   );
 
@@ -246,17 +245,17 @@ const app = new Elysia()
   set.headers["Cache-Control"] = "no-cache";
   set.headers["Connection"] = "keep-alive";
 
+  let billingDone = false;
+
   return new ReadableStream({
     async start(controller) {
       let fullContent = "";
       let actualUsage = { inputTokens: estimatedInputTokens, outputTokens: 0 };
-      let settled = false;
       const encoder = new TextEncoder();
 
       const settle = async (finalInput?: number, finalOutput?: number) => {
-        if (settled) return;
-        settled = true;
-        
+        if (billingDone) return;
+
         const inputTokens = finalInput ?? estimatedInputTokens;
         const outputTokens = finalOutput ?? BillingService.estimateTokens(fullContent);
 
@@ -269,6 +268,7 @@ const app = new Elysia()
             provider,
             conversation.id
           );
+          billingDone = true;
 
           const actualCharge = BillingService.calculateCharge(
             inputTokens,
@@ -285,46 +285,22 @@ const app = new Elysia()
 
           await prisma.conversation.update({
             where: { id: conversation.id },
-            data: { 
-              output: fullContent, 
+            data: {
+              output: fullContent,
               status: "COMPLETED",
               durationMs: Math.round(performance.now() - startTime)
             }
           });
-
-          if (body.sessionId) {
-            const lastUserMessage = body.messages[body.messages.length - 1];
-            await prisma.chatMessage.create({
-              data: {
-                sessionId: body.sessionId,
-                role: "user",
-                content: lastUserMessage.content
-              }
-            });
-            await prisma.chatMessage.create({
-              data: {
-                sessionId: body.sessionId,
-                role: "assistant",
-                content: fullContent
-              }
-            });
-          }
         } catch (e) {
           logger.error(`Settlement failed: ${e}`);
+          await BillingService.refund(apiKeyDb.user.id, reservation.id);
+          billingDone = true;
         }
       };
 
       try {
-        let stream;
         const [_companyName, providerModelName] = model.split("/");
-        if (provider.provider.name === "Google API" || provider.provider.name === "Google Vertex") {
-          stream = Gemini.stream(providerModelName, body.messages);
-        } else if (provider.provider.name === "OpenAI") {
-          stream = OpenAi.stream(providerModelName, body.messages);
-        } else if (provider.provider.name === "Claude API") {
-          stream = Claude.stream(providerModelName, body.messages);
-        }
-
+        const stream = providerStream(provider.provider.name, providerModelName!, body.messages);
         if (!stream) throw new Error("Provider not supported for streaming");
 
         for await (const chunk of stream) {
@@ -333,7 +309,10 @@ const app = new Elysia()
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: chunk.content })}\n\n`));
           }
           if (chunk.isFinal && chunk.usage) {
-            actualUsage = chunk.usage;
+            actualUsage = {
+              inputTokens: chunk.usage.inputTokens || estimatedInputTokens,
+              outputTokens: chunk.usage.outputTokens || 0,
+            };
           }
         }
 
@@ -343,8 +322,9 @@ const app = new Elysia()
 
       } catch (error: any) {
         logger.error(`Stream error: ${error.message}`);
-        if (!settled) {
+        if (!billingDone) {
           await BillingService.refund(apiKeyDb.user.id, reservation.id);
+          billingDone = true;
           await prisma.conversation.update({
             where: { id: conversation.id },
             data: { status: "FAILED" }
@@ -353,12 +333,28 @@ const app = new Elysia()
         controller.error(error);
       }
     },
-    async cancel() {}
+    async cancel() {
+      if (!billingDone) {
+        try {
+          await BillingService.refund(apiKeyDb.user.id, reservation.id);
+          billingDone = true;
+          await prisma.conversation.update({
+            where: { id: conversation.id },
+            data: { status: "FAILED" }
+          });
+        } catch (e) {
+          logger.error(`Cancel refund failed: ${e}`);
+        }
+      }
+    }
   });
 }, {
   body: Conversation
-}).listen(4000, () => {
-  logger.info(`🚀 API Backend is running on http://localhost:4000`);
+});
+
+const port = listenPort(4000);
+app.listen(port, () => {
+  logger.info(`🚀 API Backend is running on http://localhost:${port}`);
   setInterval(() => {
     BillingService.cleanupStaleReservations().catch(err => logger.error(`Cleanup job failed: ${err}`));
     RateLimiter.cleanup();

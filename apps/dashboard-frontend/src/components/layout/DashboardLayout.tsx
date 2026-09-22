@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
 import {
     Code,
@@ -151,6 +151,7 @@ export function DashboardLayout({ children, fullHeight = false }: { children: Re
     const location = useLocation();
     const navigate = useNavigate();
     const elysiaClient = useElysiaClient();
+    const queryClient = useQueryClient();
 
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
@@ -168,7 +169,7 @@ export function DashboardLayout({ children, fullHeight = false }: { children: Re
     const profileMenuRef = useRef<HTMLDivElement>(null);
 
     const userProfileQuery = useQuery({
-        queryKey: ["user-profile"],
+        queryKey: ["auth-profile"],
         queryFn: async () => {
             const response = await elysiaClient["auth"].profile.get();
             if (response.error) throw new Error("Error while fetching user details");
@@ -214,7 +215,13 @@ export function DashboardLayout({ children, fullHeight = false }: { children: Re
     const initials = email ? email.slice(0, 2).toUpperCase() : "??";
     const balanceNum = Number(balance ?? 0).toLocaleString();
 
-    const handleSignOut = () => {
+    const handleSignOut = async () => {
+        try {
+            await elysiaClient.auth["sign-out"].post();
+        } catch (e) {
+            console.error("Sign-out failed:", e);
+        }
+        queryClient.clear();
         navigate("/signin");
     };
 

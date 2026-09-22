@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useElysiaClient } from "@/providers/Eden";
 import ReactMarkdown from "react-markdown";
-import { ROUTER_API_URL } from "@/config";
+import { API_URL } from "@/config";
 
 interface Message {
     role: "user" | "assistant" | "system";
@@ -29,11 +29,12 @@ export function Chat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedModel, setSelectedModel] = useState("openai/gpt-4o");
+    const [selectedModel, setSelectedModel] = useState("");
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [newTitle, setNewTitle] = useState("");
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     // Custom confirm dialog state
     const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
@@ -72,6 +73,14 @@ export function Chat() {
         }
     }, [messages]);
 
+    useEffect(() => {
+        const models = modelsQuery.data?.models;
+        if (!models?.length) return;
+        if (!selectedModel || !models.some((m: { slug: string }) => m.slug === selectedModel)) {
+            setSelectedModel(models[0]!.slug);
+        }
+    }, [modelsQuery.data, selectedModel]);
+
     const startNewChat = async () => {
         setMessages([]);
         try {
@@ -86,16 +95,41 @@ export function Chat() {
 
     const loadSession = async (sid: string) => {
         setIsLoading(true);
+        setLoadError(null);
         try {
             const response = await elysiaClient.playground.history({ sessionId: sid }).get();
-            if (response.error) throw new Error("Failed to load session");
-            setMessages((response.data.messages as Message[]) || []);
+            if (response.error) {
+                const err = response.error.value as { message?: string } | undefined;
+                throw new Error(err?.message || "Failed to load session");
+            }
+            const loaded = (response.data?.messages ?? []).map((m: any) => ({
+                role: m.role as Message["role"],
+                content: m.content as string,
+            }));
+            setMessages(loaded);
             setSessionId(sid);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            setMessages([]);
+            setLoadError(error?.message || "Failed to load session");
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const persistTurn = async (
+        sid: string,
+        turn: { role: string; content: string }[],
+    ) => {
+        const response = await elysiaClient.playground
+            .session({ sessionId: sid })
+            .messages
+            .post({ messages: turn });
+        if (response.error) {
+            const err = response.error.value as { message?: string } | undefined;
+            throw new Error(err?.message || "Failed to persist chat messages");
+        }
+        queryClient.invalidateQueries({ queryKey: ["chat-history"] });
     };
 
     const deleteSession = async (sid: string) => {
@@ -112,7 +146,10 @@ export function Chat() {
     };
 
     const updateTitle = async (sid: string) => {
-        if (!newTitle.trim()) return;
+        if (!newTitle.trim()) {
+            setEditingSessionId(null);
+            return;
+        }
         try {
             await elysiaClient.playground.session({ sessionId: sid }).put({ title: newTitle });
             setEditingSessionId(null);
@@ -120,6 +157,7 @@ export function Chat() {
             queryClient.invalidateQueries({ queryKey: ["chat-history"] });
         } catch (e) {
             console.error(e);
+            setEditingSessionId(null);
         }
     };
 
@@ -146,37 +184,36 @@ export function Chat() {
         setIsLoading(true);
 
         try {
+            if (!selectedModel) throw new Error("No model selected. Wait for the catalog to load.");
+
             setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
-            const keysResponse = await elysiaClient["api-keys"].get();
-            if (keysResponse.error || !keysResponse.data.apiKeys.length) {
-                throw new Error("No API keys found. Please create one first.");
-            }
-            const apiKey = keysResponse.data.apiKeys[0]!.apiKey;
-
-            // Prepend system prompt if configured
             const apiMessages = systemPrompt.trim()
                 ? [{ role: "system" as const, content: systemPrompt }, ...newMessages]
                 : newMessages;
 
-            const response = await fetch(`${ROUTER_API_URL}/api/v1/chat/completions/stream`, {
+            const response = await fetch(`${API_URL}/playground/chat/stream`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                },
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     model: selectedModel,
                     messages: apiMessages,
-                    sessionId: currentSessionId
-                })
+                    sessionId: currentSessionId,
+                    temperature,
+                    max_tokens: maxTokens,
+                }),
             });
 
-            if (!response.ok) throw new Error("Stream request failed");
+            if (!response.ok) {
+                const errBody = await response.json().catch(() => null) as { message?: string } | null;
+                throw new Error(errBody?.message || `Stream request failed (${response.status})`);
+            }
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let assistantContent = "";
+            let sseBuffer = "";
 
             if (!reader) throw new Error("No reader available");
 
@@ -184,53 +221,73 @@ export function Chat() {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split("\n\n");
+                sseBuffer += decoder.decode(value, { stream: true });
+                const parts = sseBuffer.split("\n\n");
+                sseBuffer = parts.pop() ?? "";
 
-                for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        const data = line.slice(6);
-                        if (data === "[DONE]") break;
+                for (const line of parts) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith("data: ")) continue;
+                    const data = trimmed.slice(6);
+                    if (data === "[DONE]") continue;
 
-                        try {
-                            const parsed = JSON.parse(data);
-                            const content = parsed.content || "";
-                            assistantContent += content;
+                    try {
+                        const parsed = JSON.parse(data);
+                        const content = parsed.content || "";
+                        assistantContent += content;
 
-                            setMessages((prev) => {
-                                const updated = [...prev];
-                                const lastMessage = updated[updated.length - 1];
-                                if (lastMessage && lastMessage.role === "assistant") {
-                                    lastMessage.content = assistantContent;
-                                }
-                                return updated;
-                            });
-                        } catch (e) {
-                            console.error("Error parsing SSE data", e);
-                        }
+                        setMessages((prev) => {
+                            const updated = [...prev];
+                            const lastMessage = updated[updated.length - 1];
+                            if (lastMessage && lastMessage.role === "assistant") {
+                                lastMessage.content = assistantContent;
+                            }
+                            return updated;
+                        });
+                    } catch (e) {
+                        console.error("Error parsing SSE data", e);
                     }
                 }
             }
 
-            // Auto-rename if it's the first exchange
             if (newMessages.length === 1) {
                 const firstUserMsg = newMessages[0]?.content ?? "";
                 const shortTitle = firstUserMsg.length > 30 ? firstUserMsg.substring(0, 27) + "..." : firstUserMsg;
                 await elysiaClient.playground.session({ sessionId: currentSessionId! }).put({ title: shortTitle });
             }
 
+            try {
+                await persistTurn(currentSessionId!, [
+                    { role: "user", content: userMessage.content },
+                    { role: "assistant", content: assistantContent || "(empty response)" },
+                ]);
+            } catch (persistErr) {
+                console.error(persistErr);
+            }
+
             queryClient.invalidateQueries({ queryKey: ["chat-history"] });
 
         } catch (error: any) {
             console.error("Chat Error:", error);
+            const errorText = `Error: ${error.message}`;
             setMessages(prev => {
                 const updated = [...prev];
                 const lastMessage = updated[updated.length - 1];
                 if (lastMessage && lastMessage.role === "assistant") {
-                    lastMessage.content = `Error: ${error.message}`;
+                    lastMessage.content = errorText;
                 }
                 return updated;
             });
+            if (currentSessionId) {
+                try {
+                    await persistTurn(currentSessionId, [
+                        { role: "user", content: userMessage.content },
+                        { role: "assistant", content: errorText },
+                    ]);
+                } catch (persistErr) {
+                    console.error(persistErr);
+                }
+            }
         } finally {
             setIsLoading(false);
         }
@@ -312,6 +369,11 @@ export function Chat() {
                                             <Loader2 className="size-4 animate-spin" />
                                         </div>
                                     )}
+                                    {historyQuery.isError && (
+                                        <p className="px-2 py-2 text-[12px]" style={{ color: "#e5484d" }}>
+                                            Failed to load sessions.
+                                        </p>
+                                    )}
                                     {historyQuery.data?.map((session: any) => (
                                         <div key={session.id} className="group relative">
                                             {editingSessionId === session.id ? (
@@ -321,25 +383,26 @@ export function Chat() {
                                                         value={newTitle}
                                                         onChange={(e) => setNewTitle(e.target.value)}
                                                         onKeyDown={(e) => e.key === "Enter" && updateTitle(session.id)}
-                                                        onBlur={() => setEditingSessionId(null)}
+                                                        onBlur={() => updateTitle(session.id)}
                                                         className="w-full h-7 px-2 rounded-[5px] text-[12px] outline-none"
                                                         style={{ background: "var(--background)", border: "1px solid var(--accent-blue)", color: "var(--foreground)" }}
                                                     />
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={() => loadSession(session.id)}
-                                                    className="w-full text-left px-2 py-[6.5px] rounded-[7px] text-[12.5px] font-[500] transition-all flex items-center justify-between gap-1"
+                                                <div
+                                                    className="w-full text-left px-2 py-[6.5px] rounded-[7px] text-[12.5px] font-[500] transition-all flex items-center justify-between gap-1 cursor-pointer"
                                                     style={{
                                                         background: sessionId === session.id ? "rgba(255,255,255,0.07)" : "transparent",
                                                         color: sessionId === session.id ? "var(--foreground)" : "var(--foreground-2)",
                                                     }}
+                                                    onClick={() => loadSession(session.id)}
                                                     onMouseEnter={e => { if (sessionId !== session.id) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.045)"; }}
                                                     onMouseLeave={e => { if (sessionId !== session.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                                                 >
                                                     <span className="truncate flex-1 pr-1">{session.title}</span>
                                                     <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-none">
                                                         <button
+                                                            type="button"
                                                             className="size-5 flex items-center justify-center rounded-[4px] transition-colors"
                                                             style={{ color: "var(--foreground-3)" }}
                                                             onClick={e => { e.stopPropagation(); setEditingSessionId(session.id); setNewTitle(session.title); }}
@@ -349,6 +412,7 @@ export function Chat() {
                                                             <Pencil className="size-3" />
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             className="size-5 flex items-center justify-center rounded-[4px] transition-colors"
                                                             style={{ color: "var(--foreground-3)" }}
                                                             onClick={e => { e.stopPropagation(); setSessionToDelete(session.id); }}
@@ -358,7 +422,7 @@ export function Chat() {
                                                             <Trash2 className="size-3" />
                                                         </button>
                                                     </span>
-                                                </button>
+                                                </div>
                                             )}
                                         </div>
                                     ))}
@@ -400,9 +464,15 @@ export function Chat() {
                             <select
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value)}
+                                disabled={!modelsQuery.data?.models?.length}
                                 className="bg-transparent outline-none cursor-pointer text-[12.5px] font-[500]"
                                 style={{ color: "var(--foreground-2)", fontFamily: "var(--font-sans)" }}
                             >
+                                {!modelsQuery.data?.models?.length && (
+                                    <option value="" style={{ background: "var(--surface)" }}>
+                                        {modelsQuery.isLoading ? "Loading models…" : "No models available"}
+                                    </option>
+                                )}
                                 {modelsQuery.data?.models.map((m: any) => (
                                     <option key={m.id} value={m.slug} style={{ background: "var(--surface)" }}>
                                         {m.company.name} / {m.name}
@@ -426,6 +496,22 @@ export function Chat() {
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        {loadError && (
+                            <div
+                                className="mx-6 mt-4 px-3 py-2 rounded-[8px] text-[12.5px]"
+                                style={{ background: "rgba(229,72,77,0.08)", border: "1px solid rgba(229,72,77,0.2)", color: "#e5484d" }}
+                            >
+                                {loadError}
+                            </div>
+                        )}
+                        {modelsQuery.isError && (
+                            <div
+                                className="mx-6 mt-4 px-3 py-2 rounded-[8px] text-[12.5px]"
+                                style={{ background: "rgba(229,72,77,0.08)", border: "1px solid rgba(229,72,77,0.2)", color: "#e5484d" }}
+                            >
+                                Failed to load model catalog.
+                            </div>
+                        )}
                         <div className="max-w-[720px] mx-auto py-10 px-6 space-y-8">
                             {messages.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-32 space-y-6">

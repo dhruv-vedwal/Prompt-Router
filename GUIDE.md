@@ -103,7 +103,7 @@ const apiKeysQuery = useQuery({
 ## 🛠️ Part 4: Developer Workflow
 
 ### Adding a new feature to the whole project:
-1.  **DB:** Add the field to `schema.prisma` and run `bunx prisma db push`.
+1.  **DB:** Add the field to `schema.prisma` and run `bun run generate` then `bun run db:migrate` (from `packages/db`).
 2.  **API:** Add a new route in the `primary-backend` controllers.
 3.  **Frontend:** Simply call the new route via `useElysiaClient()`. Because of the Eden Treaty, your new route will already have autocomplete in the frontend!
 

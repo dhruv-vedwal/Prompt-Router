@@ -2,12 +2,13 @@ import jwt from "@elysiajs/jwt";
 import Elysia, { t } from "elysia";
 import { ApiKeyModel } from "./models";
 import { ApiKeyService } from "./service";
+import { requireJwtSecret } from "../../lib/env";
 
 export const app = new Elysia({ prefix: "api-keys" })
     .use(
         jwt({
             name: 'jwt',
-            secret: process.env.JWT_SECRET!
+            secret: requireJwtSecret()
         })
     )
     .resolve(async ({ cookie: { auth }, status, jwt}) => {
@@ -47,15 +48,15 @@ export const app = new Elysia({ prefix: "api-keys" })
             200: ApiKeyModel.getApiKeysResponseSchema
         }
     })
-    .put("/", ({ body, userId, status }) => {
+    .put("/", async ({ body, userId, status }) => {
         try {
-            ApiKeyService.updateApiKeyDisabled(Number(body.id), Number(userId), body.disabled);
+            await ApiKeyService.updateApiKeyDisabled(Number(body.id), Number(userId), body.disabled);
             return {
-                message: "Updated api key successfully"
+                message: "Updated api key successfully" as const
             }
         } catch(e) {
             return status(411, {
-                message: "Updating api key unsuccessful"
+                message: "Updating api key unsuccessful" as const
             })
         }
     }, {
@@ -69,11 +70,11 @@ export const app = new Elysia({ prefix: "api-keys" })
         try {
             await ApiKeyService.delete(Number(id), Number(userId))
             return {
-                message: "Api key deleted successfully"
+                message: "Api key deleted successfully" as const
             }
         } catch(e) {
             return status(411,{
-                message: "Api key deletetion failed"
+                message: "Api key deletetion failed" as const
             })
         }
     }, {

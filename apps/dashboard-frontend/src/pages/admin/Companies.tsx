@@ -173,7 +173,7 @@ export function ManageCompanies() {
                 )}
 
                 <div className="px-[18px] py-[10px] text-[12px]" style={{ color: "var(--foreground-3)" }}>
-                    {filtered.length} of {companies.length} company{companies.length !== 1 ? "ies" : "y"}
+                    {filtered.length} of {companies.length} {companies.length !== 1 ? "companies" : "company"}
                 </div>
             </div>
         </DashboardLayout>

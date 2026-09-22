@@ -17,8 +17,8 @@ export class OpenAi extends BaseLlm {
         });
 
         return {
-            inputTokensConsumed: response.usage?.prompt_tokens!,
-            outputTokensConsumed: response.usage?.completion_tokens!,
+            inputTokensConsumed: response.usage?.prompt_tokens ?? 0,
+            outputTokensConsumed: response.usage?.completion_tokens ?? 0,
             completions: {
                 choices: response.choices.map(c => ({
                     message: {

@@ -17,7 +17,7 @@ export function Credits() {
     });
 
     const userProfileQuery = useQuery({
-        queryKey: ["user-profile"],
+        queryKey: ["auth-profile"],
         queryFn: async () => {
             const response = await elysiaClient["auth"].profile.get();
             if (response.error) throw new Error("Error while fetching user details");
@@ -36,7 +36,7 @@ export function Credits() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-            queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+            queryClient.invalidateQueries({ queryKey: ["auth-profile"] });
         },
     });
 

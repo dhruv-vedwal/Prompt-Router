@@ -2,18 +2,53 @@ import { Cookie, Elysia, t } from "elysia";
 import { AuthModel } from "./models";
 import { AuthService } from "./service";
 import jwt from "@elysiajs/jwt";
-import { password } from "bun";
+import { requireJwtSecret } from "../../lib/env";
+import { prisma } from "db";
+
+function applyAuthCookie(auth: Cookie<unknown> | undefined, token: string) {
+    if (!auth) {
+        auth = new Cookie("auth", {});
+    }
+    const crossSite = process.env.COOKIE_SAME_SITE === "none";
+    auth.set({
+        value: token,
+        httpOnly: true,
+        maxAge: 7 * 86400,
+        path: "/",
+        secure: crossSite,
+        sameSite: crossSite ? "none" : "lax",
+    });
+    return auth;
+}
+
+function clearAuthCookie(auth: Cookie<unknown> | undefined) {
+    if (!auth) return;
+    const crossSite = process.env.COOKIE_SAME_SITE === "none";
+    auth.set({
+        value: "",
+        httpOnly: true,
+        maxAge: 0,
+        path: "/",
+        secure: crossSite,
+        sameSite: crossSite ? "none" : "lax",
+    });
+}
 
 export const app = new Elysia({ prefix: "auth" })
     .use(
         jwt({
             name: 'jwt',
-            secret: process.env.JWT_SECRET!
+            secret: requireJwtSecret()
         })
     )
-    .post("/sign-up", async ({ body, status }) => {
+    .post("/sign-up", async ({ jwt, body, status, cookie: { auth } }) => {
         try {
             const userId = await AuthService.signup(body.email, body.password);
+            const { correctCredentials, role } = await AuthService.signin(body.email, body.password);
+            if (correctCredentials && userId) {
+                const token = await jwt.sign({ userId, role });
+                applyAuthCookie(auth, token);
+            }
             return {
                 id: userId
             }
@@ -34,21 +69,7 @@ export const app = new Elysia({ prefix: "auth" })
         const { correctCredentials, userId, role } = await AuthService.signin(body.email, body.password)
         if (correctCredentials && userId) {
             const token = await jwt.sign({ userId, role })
-            if (!auth) {
-                auth = new Cookie("auth", {});
-            }
-
-            // Cross-site (Vercel frontend → Render API) requires SameSite=None + Secure.
-            const crossSite = process.env.COOKIE_SAME_SITE === "none"
-                || process.env.NODE_ENV === "production";
-            auth.set({
-                value: token,
-                httpOnly: true,
-                maxAge: 7 * 86400,
-                path: "/",
-                secure: crossSite,
-                sameSite: crossSite ? "none" : "lax",
-            })
+            applyAuthCookie(auth, token);
 
             return {
                 message: "Signed in successfully"
@@ -65,6 +86,10 @@ export const app = new Elysia({ prefix: "auth" })
             403: AuthModel.signinFailureSchema
         }
     })
+    .post("/sign-out", async ({ cookie: { auth } }) => {
+        clearAuthCookie(auth);
+        return { message: "Signed out" };
+    })
     .resolve(async ({ cookie: { auth }, status, jwt}) => {
         if (!auth) {
             return status(401)
@@ -76,9 +101,15 @@ export const app = new Elysia({ prefix: "auth" })
             return status(401)
         }
 
+        // Prefer live DB role over JWT snapshot
+        const user = await prisma.user.findUnique({
+            where: { id: Number(decoded.userId) },
+            select: { role: true },
+        });
+
         return {
             userId: decoded.userId as string,
-            role: decoded.role as string
+            role: (user?.role ?? decoded.role) as string
         }
     })
     .get("/profile", async({ userId, status }) => {

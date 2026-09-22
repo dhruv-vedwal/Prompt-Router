@@ -26,6 +26,7 @@ model ApiKey {
   userId          Int
   name            String
   apiKey          String         @unique
+  keyPrefix       String         @default("")
   disabled        Boolean        @default(false)
   deleted         Boolean        @default(false)
   rpmLimit        Int            @default(60)

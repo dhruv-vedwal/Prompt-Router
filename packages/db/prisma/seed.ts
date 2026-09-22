@@ -2,6 +2,12 @@ import { prisma } from "../index.ts";
 import * as crypto from "crypto";
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DB_SEED !== "true") {
+    throw new Error(
+      "Refusing to seed in production. Set ALLOW_DB_SEED=true to override (destructive).",
+    );
+  }
+
   console.log("🌱 Starting Database Seeding...");
 
   // 1. Clean existing records in correct relation order to prevent foreign key errors
@@ -166,6 +172,7 @@ async function main() {
       userId: devUser.id,
       name: "Development Default Key",
       apiKey: hashedKey,
+      keyPrefix: rawKey.slice(0, 12),
       rpmLimit: 120,
       tpmLimit: 80000,
     },

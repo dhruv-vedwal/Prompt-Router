@@ -1,10 +1,11 @@
 import { prisma } from "db";
-import { jwt } from '@elysiajs/jwt'
 
 export abstract class AuthService {
     static async signup(email: string, password: string): Promise<string> {
+        // Bootstrap admin only via seed / explicit ALLOW_FIRST_ADMIN — avoid race to multiple ADMINs
+        const allowFirstAdmin = process.env.ALLOW_FIRST_ADMIN === "true";
         const userCount = await prisma.user.count();
-        const role = userCount === 0 ? "ADMIN" : "USER";
+        const role = allowFirstAdmin && userCount === 0 ? "ADMIN" : "USER";
 
         const user = await prisma.user.create({
             data: {

@@ -3,7 +3,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_local_only}
       POSTGRES_DB: promptrouter
     ports:
       - "5432:5432"
@@ -20,8 +20,28 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/promptrouter
-      - JWT_SECRET=test_secret_change_me
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-changeme_local_only}@db:5432/promptrouter
+      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_change_me_16}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost}
+      - COOKIE_SAME_SITE=${COOKIE_SAME_SITE:-lax}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:-dev_internal_secret}
+      - ROUTER_API_URL=http://api:4000
+      - NODE_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api-backend/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-changeme_local_only}@db:5432/promptrouter
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:-dev_internal_secret}
+      - NODE_ENV=development
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +50,11 @@ services:
     build:
       context: .
       dockerfile: apps/dashboard-frontend/Dockerfile
+      args:
+        API_URL: ${API_URL:-http://localhost:3000}
+        ROUTER_API_URL: ${ROUTER_API_URL:-http://localhost:4000}
     ports:
       - "80:80"
     depends_on:
       - backend
+      - api

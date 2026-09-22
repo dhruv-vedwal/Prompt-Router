@@ -18,7 +18,7 @@ export abstract class StatsService {
         const totalMargin = conversations.reduce((acc, curr) => acc + Number(curr.margin ?? 0), 0);
         const totalCost = conversations.reduce((acc, curr) => acc + Number(curr.rawCost ?? 0), 0);
 
-        const averageMargin = conversations.length > 0 ? (totalMargin / totalRevenue) * 100 : 0;
+        const averageMargin = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
         const successRate = conversations.length > 0 
             ? (conversations.filter(c => c.status === "COMPLETED").length / conversations.length) * 100 
             : 100;

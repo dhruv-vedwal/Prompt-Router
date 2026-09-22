@@ -112,6 +112,25 @@ const outdir = cliConfig.outdir || path.join(process.cwd(), "dist");
 
 const apiUrl = process.env.API_URL || "http://localhost:3000";
 const routerApiUrl = process.env.ROUTER_API_URL || "http://localhost:4000";
+const strictEnv =
+  process.env.NODE_ENV === "production" ||
+  process.env.STRICT_FRONTEND_ENV === "1" ||
+  process.env.VERCEL === "1" ||
+  process.env.RENDER === "true";
+
+if (strictEnv) {
+  if (!process.env.API_URL || !process.env.ROUTER_API_URL) {
+    throw new Error(
+      "API_URL and ROUTER_API_URL must be set for production frontend builds",
+    );
+  }
+  if (/localhost|127\.0\.0\.1/i.test(apiUrl) || /localhost|127\.0\.0\.1/i.test(routerApiUrl)) {
+    throw new Error(
+      "Production frontend builds cannot bake localhost API URLs — set API_URL and ROUTER_API_URL",
+    );
+  }
+}
+
 console.log(`🔗 API_URL=${apiUrl}`);
 console.log(`🔗 ROUTER_API_URL=${routerApiUrl}\n`);
 

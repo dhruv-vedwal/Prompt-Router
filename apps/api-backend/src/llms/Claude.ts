@@ -42,27 +42,33 @@ export class Claude extends BaseLlm {
             stream: true
         });
 
+        let inputTokens = 0;
+        let outputTokens = 0;
+
         for await (const event of stream) {
+            if (event.type === "message_start" && event.message?.usage) {
+                inputTokens = event.message.usage.input_tokens ?? inputTokens;
+            }
+
             if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
                 yield { content: event.delta.text };
             }
 
             if (event.type === "message_delta") {
-                // Final usage is often here
                 if (event.usage) {
-                    yield {
-                        content: "",
-                        isFinal: true,
-                        usage: {
-                            inputTokens: 0, // Anthropic usage delta only shows output_tokens usually
-                            outputTokens: event.usage.output_tokens
-                        }
-                    };
+                    outputTokens = event.usage.output_tokens ?? outputTokens;
                 }
             }
 
             if (event.type === "message_stop") {
-                // Stream finished
+                yield {
+                    content: "",
+                    isFinal: true,
+                    usage: {
+                        inputTokens,
+                        outputTokens,
+                    },
+                };
             }
         }
     }

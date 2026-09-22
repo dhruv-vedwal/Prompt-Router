@@ -2,12 +2,13 @@ import jwt from "@elysiajs/jwt";
 import Elysia from "elysia";
 import { PaymentsModel } from "./models";
 import { PaymentsService } from "./service";
+import { requireJwtSecret } from "../../lib/env";
 
 export const app = new Elysia({ prefix: "payments" })
     .use(
         jwt({
             name: 'jwt',
-            secret: process.env.JWT_SECRET!
+            secret: requireJwtSecret()
         })
     )
     .resolve(async ({ cookie: { auth }, status, jwt }) => {
@@ -26,6 +27,9 @@ export const app = new Elysia({ prefix: "payments" })
         }
     })
     .post("/onramp", async ({ userId, status }) => {
+        if (process.env.NODE_ENV === "production" && process.env.PAYMENTS_TEST_MODE !== "true") {
+            return status(403, { message: "Onramp disabled in production" as any });
+        }
         try {
             const credits = await PaymentsService.onramp(Number(userId));
             return {

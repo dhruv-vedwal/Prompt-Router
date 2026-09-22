@@ -5,7 +5,8 @@
     ".": "./src/app.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "bun test",
+    "test:vitest": "vitest run",
     "test:watch": "vitest",
     "dev": "bun run --watch src/index.ts"
   },

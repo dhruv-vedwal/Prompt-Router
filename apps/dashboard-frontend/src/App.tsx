@@ -22,6 +22,7 @@ import { AdminUsers } from "./pages/admin/Users";
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { API_URL } from "./config";
+import { RequireAuth, RequireAdmin } from "./components/auth/RouteGuards";
 
 const client = treaty<App>(API_URL, {
   fetch: {
@@ -39,22 +40,22 @@ export function App() {
         <ElysiaClientContextProvider value={client}>
             <BrowserRouter>
               <Routes>
-                <Route path={"/"} element={<Landing />} /> 
-                <Route path={"/signup"} element={<Signup />} /> 
-                <Route path={"/signin"} element={<Signin />} /> 
-                <Route path={"/dashboard"} element={<Dashboard />} /> 
-                <Route path={"/credits"} element={<Credits />} /> 
-                <Route path={"/api-keys"} element={<ApiKeys />} /> 
-                <Route path={"/analytics"} element={<Analytics />} /> 
-                <Route path={"/playground"} element={<Chat />} /> 
-                <Route path={"/sdks"} element={<Sdks />} /> 
-                
-                {/* Admin Routes */}
-                <Route path={"/admin/models"} element={<ManageModels />} /> 
-                <Route path={"/admin/providers"} element={<ManageProviders />} /> 
-                <Route path={"/admin/stats"} element={<PlatformStats />} /> 
-                <Route path={"/admin/companies"} element={<ManageCompanies />} />
-                <Route path={"/admin/users"} element={<AdminUsers />} />
+                <Route path={"/"} element={<Landing />} />
+                <Route path={"/signup"} element={<Signup />} />
+                <Route path={"/signin"} element={<Signin />} />
+                <Route path={"/dashboard"} element={<RequireAuth><Dashboard /></RequireAuth>} />
+                <Route path={"/credits"} element={<RequireAuth><Credits /></RequireAuth>} />
+                <Route path={"/api-keys"} element={<RequireAuth><ApiKeys /></RequireAuth>} />
+                <Route path={"/analytics"} element={<RequireAuth><Analytics /></RequireAuth>} />
+                <Route path={"/playground"} element={<RequireAuth><Chat /></RequireAuth>} />
+                <Route path={"/sdks"} element={<RequireAuth><Sdks /></RequireAuth>} />
+
+                <Route path={"/admin/models"} element={<RequireAdmin><ManageModels /></RequireAdmin>} />
+                <Route path={"/admin/providers"} element={<RequireAdmin><ManageProviders /></RequireAdmin>} />
+                <Route path={"/admin/stats"} element={<RequireAdmin><PlatformStats /></RequireAdmin>} />
+                <Route path={"/admin/companies"} element={<RequireAdmin><ManageCompanies /></RequireAdmin>} />
+                <Route path={"/admin/users"} element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+                <Route path={"*"} element={<Landing />} />
               </Routes>
             </BrowserRouter>
         </ElysiaClientContextProvider>

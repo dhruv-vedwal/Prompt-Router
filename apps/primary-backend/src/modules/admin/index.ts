@@ -1,23 +1,31 @@
 import Elysia, { t } from "elysia";
 import jwt from "@elysiajs/jwt";
 import { prisma } from "db";
+import { requireJwtSecret } from "../../lib/env";
 
 export const app = new Elysia({ prefix: "admin" })
     .use(
         jwt({
             name: 'jwt',
-            secret: process.env.JWT_SECRET!
+            secret: requireJwtSecret()
         })
     )
-    .resolve(async ({ cookie: { auth }, status, jwt}) => {
+    .resolve(async ({ cookie: { auth }, status, jwt }) => {
         if (!auth) return status(401)
         const decoded = await jwt.verify(auth.value as string);
         if (!decoded || !decoded.userId) return status(401)
-        
-        // Ensure user is an admin (For now we'll assume any logged in user can access admin for dev, 
-        // but in prod you'd check a 'role' field in the DB)
+
+        const user = await prisma.user.findUnique({
+            where: { id: Number(decoded.userId) },
+            select: { id: true, role: true },
+        });
+        if (!user || user.role !== "ADMIN") {
+            return status(403, { message: "Forbidden" });
+        }
+
         return {
-            userId: decoded.userId as string
+            userId: user.id.toString(),
+            role: user.role,
         }
     })
     // --- USER MANAGEMENT ---
@@ -26,16 +34,23 @@ export const app = new Elysia({ prefix: "admin" })
             where: query.search ? {
                 email: { contains: query.search, mode: 'insensitive' }
             } : {},
-            include: {
-                _count: { select: { apiKeys: true, conversations: true } }
+            select: {
+                id: true,
+                email: true,
+                balance: true,
+                reservedCredits: true,
+                role: true,
+                _count: { select: { apiKeys: true, conversations: true } },
             },
             orderBy: { id: 'desc' }
         });
     })
-    .post("/users/:id/topup", async ({ params: { id }, body }) => {
+    .post("/users/:id/topup", async ({ params: { id }, body, status }) => {
         const amount = Number(body.amount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return status(400, { message: "Amount must be a positive number" });
+        }
         return await prisma.$transaction(async (tx) => {
-            // 1. Create Onramp Transaction
             await tx.transaction.create({
                 data: {
                     userId: Number(id),
@@ -45,10 +60,15 @@ export const app = new Elysia({ prefix: "admin" })
                 }
             });
 
-            // 2. Update User Credits
             return await tx.user.update({
                 where: { id: Number(id) },
-                data: { balance: { increment: amount } }
+                data: { balance: { increment: amount } },
+                select: {
+                    id: true,
+                    email: true,
+                    balance: true,
+                    role: true,
+                },
             });
         });
     }, {
@@ -61,13 +81,15 @@ export const app = new Elysia({ prefix: "admin" })
     .put("/models/:id", async ({ params: { id }, body }) => {
         return await prisma.model.update({
             where: { id: Number(id) },
-            data: body
+            data: {
+                ...(body.name !== undefined ? { name: body.name } : {}),
+                ...(body.slug !== undefined ? { slug: body.slug } : {}),
+            }
         });
     }, {
         body: t.Object({
             name: t.Optional(t.String()),
             slug: t.Optional(t.String()),
-            description: t.Optional(t.String())
         })
     })
     .put("/mappings/:id", async ({ params: { id }, body }) => {

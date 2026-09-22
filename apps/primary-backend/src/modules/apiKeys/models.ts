@@ -36,10 +36,11 @@ export namespace ApiKeyModel {
     export const getApiKeysResponseSchema = t.Object({
         apiKeys: t.Array(t.Object({
             id: t.String(),
-            apiKey: t.String(),
+            keyPrefix: t.String(),
             name: t.String(),
             creditsConsumed: t.String(),
             lastUsed: t.Nullable(t.Date()),
+            createdAt: t.Date(),
             disabled: t.Boolean()
         }))
     })
@@ -57,6 +58,4 @@ export namespace ApiKeyModel {
     })
 
     export type deleteApiKeyResponseFailedSchema = typeof deleteApiKeyResponseFailedSchema.static;
-
-
 }

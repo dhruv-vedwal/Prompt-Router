@@ -15,6 +15,7 @@ export type Messages = typeof Messages.static;
 export const Conversation = t.Object({
     model: t.String(),
     messages: Messages,
-    sessionId: t.Optional(t.String())
+    sessionId: t.Optional(t.String()),
+    temperature: t.Optional(t.Number()),
+    max_tokens: t.Optional(t.Number()),
 })
-

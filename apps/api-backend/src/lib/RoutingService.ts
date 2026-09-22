@@ -8,7 +8,7 @@ export abstract class RoutingService {
     static async selectProvider(modelId: number) {
         // 1. Get all candidate mappings
         const mappings = await prisma.modelProviderMapping.findMany({
-            where: { modelId },
+            where: { modelId, enabled: true },
             include: { provider: true }
         });
 

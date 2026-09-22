@@ -37,8 +37,9 @@ export function ApiKeys() {
             setNewKeyName("");
             setShowCreate(false);
             queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            alert(error?.message || "Failed to create key");
         } finally {
             setIsCreating(false);
         }
@@ -46,10 +47,12 @@ export function ApiKeys() {
 
     const deleteKey = async (id: string) => {
         try {
-            await elysiaClient["api-keys"]({ id }).delete();
+            const response = await elysiaClient["api-keys"]({ id }).delete();
+            if (response.error) throw new Error("Failed to delete key");
             queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            alert(error?.message || "Failed to delete key");
         }
     };
 
@@ -57,11 +60,6 @@ export function ApiKeys() {
         navigator.clipboard.writeText(text);
         setCopiedKey(text);
         setTimeout(() => setCopiedKey(null), 2000);
-    };
-
-    const maskKey = (key: string) => {
-        if (key.length < 12) return "••••••••";
-        return `${key.substring(0, 12)}…${key.slice(-4)}`;
     };
 
     const allKeys = apiKeysQuery.data?.apiKeys ?? [];
@@ -255,6 +253,12 @@ export function ApiKeys() {
                                     <Loader2 className="size-4 animate-spin inline mr-2" />Loading keys…
                                 </td>
                             </tr>
+                        ) : apiKeysQuery.isError ? (
+                            <tr>
+                                <td colSpan={7} className="px-[18px] py-8 text-center text-[13px]" style={{ color: "#e5484d" }}>
+                                    Failed to load API keys.
+                                </td>
+                            </tr>
                         ) : filteredKeys.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="px-[18px] py-16 text-center" style={{ color: "var(--foreground-3)" }}>
@@ -286,7 +290,6 @@ export function ApiKeys() {
                                     copiedKey={copiedKey}
                                     onCopy={copyToClipboard}
                                     onDelete={() => setKeyToDelete(key.id)}
-                                    maskKey={maskKey}
                                 />
                             ))
                         )}
@@ -345,16 +348,15 @@ function KeyRow({
     copiedKey,
     onCopy,
     onDelete,
-    maskKey,
 }: {
     row: any;
     isLast: boolean;
     copiedKey: string | null;
     onCopy: (s: string) => void;
     onDelete: () => void;
-    maskKey: (s: string) => string;
 }) {
     const [hovered, setHovered] = useState(false);
+    const prefix = row.keyPrefix || "sk-or-v1-…";
 
     const createdDate = row.createdAt
         ? new Date(row.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -379,12 +381,13 @@ function KeyRow({
                     className="flex items-center gap-[7px]"
                     style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--foreground-2)" }}
                 >
-                    {maskKey(row.apiKey)}
+                    {prefix}…
                     <button
-                        onClick={() => onCopy(row.apiKey)}
+                        onClick={() => onCopy(prefix)}
                         style={{ opacity: hovered ? 1 : 0, color: "var(--foreground-3)", transition: "opacity 0.1s ease" }}
+                        title="Copy prefix"
                     >
-                        {copiedKey === row.apiKey ? <Check className="size-[13px]" /> : <Copy className="size-[13px]" />}
+                        {copiedKey === prefix ? <Check className="size-[13px]" /> : <Copy className="size-[13px]" />}
                     </button>
                 </div>
             </td>

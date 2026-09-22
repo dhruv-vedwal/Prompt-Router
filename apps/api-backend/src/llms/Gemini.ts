@@ -17,8 +17,8 @@ export class Gemini extends BaseLlm {
         });
 
         return {
-            outputTokensConsumed: response.usageMetadata?.candidatesTokenCount!,
-            inputTokensConsumed: response.usageMetadata?.promptTokenCount!,
+            outputTokensConsumed: response.usageMetadata?.candidatesTokenCount ?? 0,
+            inputTokensConsumed: response.usageMetadata?.promptTokenCount ?? 0,
             completions: {
                 choices: [{
                     message: {

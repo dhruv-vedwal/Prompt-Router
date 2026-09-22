@@ -1,0 +1,17 @@
+node_modules
+.git
+.turbo
+dist
+**/dist
+**/.env
+**/.env.*
+!.env.example
+*.log
+coverage
+.DS_Store
+agent-transcripts
+.cursor
+apps/dashboard-frontend/node_modules
+apps/primary-backend/node_modules
+apps/api-backend/node_modules
+packages/db/node_modules

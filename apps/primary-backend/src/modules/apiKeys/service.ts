@@ -1,35 +1,24 @@
 import { prisma } from "db"
-
-const API_KEY_LENGTH = 20;
-const ALPHABET_SET = "zxcvbnmasdfghjklqwertyuiopZXCVBNMASDFGHJKLQWERTYUIOP1234567890";
+import { ApiKeyCrypto } from "../../lib/ApiKeyCrypto";
 
 export abstract class ApiKeyService {
-
-    static createRandomApiKey() {
-        let suffixKey = "";
-        for (let i = 0; i < API_KEY_LENGTH; i++) {
-            suffixKey += ALPHABET_SET[Math.floor(Math.random() * ALPHABET_SET.length)]
-        }
-        return `sk-or-v1-${suffixKey}`
-    }
-
     static async createApiKey(name: string, userId: number): Promise<{
         id: string,
         apiKey: string
     }> {
-
-        const apiKey = ApiKeyService.createRandomApiKey();
+        const plaintext = ApiKeyCrypto.generateKey();
         const apiKeyDb = await prisma.apiKey.create({
             data: {
-                name, 
-                apiKey,
+                name,
+                apiKey: ApiKeyCrypto.hashKey(plaintext),
+                keyPrefix: ApiKeyCrypto.keyPrefix(plaintext),
                 userId
             }
         })
 
         return {
             id: apiKeyDb.id.toString(),
-            apiKey
+            apiKey: plaintext,
         }
     }
 
@@ -43,10 +32,11 @@ export abstract class ApiKeyService {
 
         return apiKeys.map(apiKey => ({
             id: apiKey.id.toString(),
-            apiKey: apiKey.apiKey,
+            keyPrefix: apiKey.keyPrefix || ApiKeyCrypto.keyPrefix(apiKey.apiKey),
             name: apiKey.name,
             creditsConsumed: apiKey.creditsConsumed.toString(),
             lastUsed: apiKey.lastUsed,
+            createdAt: apiKey.createdAt,
             disabled: apiKey.disabled
         }))
     }
@@ -73,5 +63,15 @@ export abstract class ApiKeyService {
                 deleted: true
             }
         })
+    }
+
+    /** First active key id for playground proxy (secret never leaves the DB hashed). */
+    static async getFirstActiveKeyId(userId: number): Promise<number | null> {
+        const key = await prisma.apiKey.findFirst({
+            where: { userId, deleted: false, disabled: false },
+            orderBy: { id: "asc" },
+            select: { id: true },
+        });
+        return key?.id ?? null;
     }
 }
